@@ -86,12 +86,14 @@ browser CORS restrictions on the local filesystem.
     "websocket":{ "color": "#8E5CF7", "style": "dotted", "width": 2, "arrow": "triangle" },
     "file-io":  { "color": "#4CAF50", "style": "dashed", "width": 1, "arrow": "none" }
   },
+  "tags": ["checkout-flow", "returns-flow", "admin-only"],
   "nodes": [
     {
       "id": "orders-service",
       "label": "Orders Service",
       "type": "service",
       "position": { "x": 100, "y": 200 },
+      "tags": ["checkout-flow", "returns-flow"],
       "details": {
         "description": "Owns order lifecycle, publishes order events.",
         "team": "Commerce",
@@ -106,6 +108,7 @@ browser CORS restrictions on the local filesystem.
       "target": "message-bus",
       "type": "rabbitmq",
       "label": "order.created",
+      "tags": ["checkout-flow"],
       "details": {
         "payload": "OrderCreatedEvent { orderId, userId, total }",
         "notes": "Fire-and-forget, at-least-once delivery."
@@ -130,6 +133,15 @@ Key design choices baked into this schema:
   a stable, intentional layout (not a force-directed graph that jitters
   every reload), so positions are authored data, not computed. See "Saving
   layout changes" below for how this stays editable as you drag nodes.
+- **`tags` is a separate, orthogonal axis from `type`.** `type` drives visual
+  style (color/shape/line) via `nodeTypes`/`edgeTypes`; `tags` drives nothing
+  visually and exists purely for filtering (see "Tag-based filtering"
+  below). A node or edge can have zero, one, or many tags, freely mixed with
+  any `type`. The top-level `tags` array is the authoritative, ordered list
+  of every tag that exists — it's what populates the filter dropdown, so a
+  tag can be declared there before anything uses it yet, and its order
+  controls the order it appears in the dropdown. Per-element `tags` arrays
+  just reference names from that list.
 
 ## Wiring it up (interface script responsibilities)
 
@@ -147,13 +159,74 @@ Key design choices baked into this schema:
   pinch on trackpad/touch). Optionally add explicit `+`/`-`/"fit to screen"
   buttons that call `cy.zoom()`/`cy.fit()` for discoverability, since some
   users don't know to scroll to zoom.
-- **Legend + filtering:** auto-build a legend from `edgeTypes` (and
+- **Legend + type filtering:** auto-build a legend from `edgeTypes` (and
   optionally `nodeTypes`) with a colored swatch + label per type, and a
   checkbox per entry that toggles `cy.edges('[type = "..."]').toggleClass('hidden')`
   (with `.hidden { display: none; }` in the stylesheet). This is what makes
   a busy diagram usable — turn off "file-io" edges while you study the
   REST call graph, etc. Free to build once, and needs no changes as new
   types are added since it's generated from the same dictionary.
+- **Tag filter dropdown:** built alongside the legend, generated from the
+  top-level `tags` array (see "Tag-based filtering" below for the full
+  behavior). Two independent filters — type toggles and tag selection — both
+  end up as an element visibility computation, so it's cleanest to give
+  each element two boolean flags (`typeHidden`, `tagHidden`) and apply the
+  actual `.hidden` class as `typeHidden || tagHidden`, recomputed whenever
+  either filter changes, rather than letting the two filters stomp on each
+  other's class toggles independently.
+
+## Tag-based filtering (dropdown)
+
+The type-based legend answers "what kinds of things exist in this diagram?"
+Tags answer a different question: "which services and flows matter for a
+particular action/workflow?" — e.g. show only what's involved in checkout,
+regardless of whether it's a REST call, a queue message, or a database. The
+two filters are independent and both apply at once.
+
+- **UI: a checkbox-list dropdown, not native `<select multiple>`.** A native
+  multi-select listbox needs ctrl/cmd-click to pick more than one option,
+  which most users don't know and which doesn't show what's already
+  selected at a glance. Instead build a small custom widget: a button
+  (e.g. "Filter by tags ▾", with a count badge like "Tags (2)" once
+  something's selected) that toggles a popover panel containing one checkbox
+  per tag, sourced from the top-level `tags` array in declaration order.
+  Close the popover on an outside click or Escape, same pattern as the
+  detail panel. This scales fine whether there end up being 4 tags or 40,
+  without cluttering the canvas the way a full row of checkboxes/radios
+  would — which is the reason for a dropdown over repeating the legend's
+  checkbox-row style.
+- **Selection semantics: OR across selected tags.** Checking multiple tags
+  broadens the view (union), not narrows it — "show me everything involved
+  in checkout OR returns," not "show me only things tagged with both."
+  This matches the stated use case of isolating one workflow at a time, and
+  is what most people expect from a "filter by tag" control. An element
+  matches if it has *any* tag in the selected set:
+  `element.tags.some(t => selectedTags.has(t))`.
+- **No tags selected = filter inactive, everything shown.** This is the
+  dropdown's default/cleared state — don't require "select all tags" to see
+  the full diagram.
+- **Once at least one tag is selected, untagged elements are hidden too.**
+  Selecting tags is an explicit request to narrow to a workflow, so a node
+  or edge with no `tags` at all doesn't match any selection and drops out
+  along with the non-matching tagged ones. (If this turns out to be
+  surprising in practice, the alternative — always show untagged elements —
+  is a one-line change to the predicate above; call it out during review of
+  the first real dataset.)
+- **Edges depend on their own tags AND their endpoints' visibility.** An
+  edge whose tags match the filter should still hide if the type-legend (or
+  the tag filter itself) has hidden one of its endpoint nodes — otherwise
+  you get a dangling edge floating with no visible source/target. Recompute
+  edge visibility as `edgeTagHidden || sourceNode.hidden() || targetNode.hidden()`
+  in the same pass that applies the combined `.hidden` class from the point
+  above.
+- **Combines with type filtering via AND, same as any two independent
+  filters:** an element must pass both the type-legend check and the tag
+  check to stay visible. Concretely, keep computing `typeHidden` exactly as
+  today, add a parallel `tagHidden` computation from the dropdown's current
+  selection, and apply `.hidden` whenever either is true.
+- Tags need no color/shape of their own — they're a filtering concern only,
+  so nothing in `nodeTypes`/`edgeTypes` changes and existing visual styling
+  is untouched by this feature.
 
 ## Scaling for a big diagram
 
@@ -211,10 +284,13 @@ letting layout adjustments persist.
 2. Wire stylesheet generation from `nodeTypes`/`edgeTypes` dictionaries.
 3. Wire click → detail panel for nodes and edges (generic `details` renderer).
 4. Add legend with type-toggle checkboxes.
-5. Add zoom controls + fit-to-screen button.
-6. Add the search box.
-7. Add `cytoscape-expand-collapse` + a `parent` grouping in the sample data
+5. Add the tag-filter dropdown (checkbox popover sourced from the top-level
+   `tags` array) and wire its selection into the combined `typeHidden ||
+   tagHidden` visibility computation described in "Tag-based filtering."
+6. Add zoom controls + fit-to-screen button.
+7. Add the search box.
+8. Add `cytoscape-expand-collapse` + a `parent` grouping in the sample data
    to prove out clustering before filling in the real microservice list.
-8. Add the "copy layout as JSON" button.
-9. Backfill the real dataset (your actual services/flows) into the data
-   block.
+9. Add the "copy layout as JSON" button.
+10. Backfill the real dataset (your actual services/flows, including
+    meaningful `tags` per workflow) into the data block.
