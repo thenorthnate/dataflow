@@ -65,6 +65,25 @@
     white-space: nowrap;
   }
 
+  #tag-filter { position: relative; }
+  #tag-filter-menu {
+    position: absolute;
+    top: 36px;
+    left: 0;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    min-width: 180px;
+    max-height: 320px;
+    overflow-y: auto;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.14);
+    z-index: 30;
+  }
+  #tag-filter-menu[hidden] { display: none; }
+  #tag-filter-menu .legend-row { padding: 4px 2px; }
+  #tag-filter-menu .empty { color: var(--muted); font-size: 12.5px; padding: 2px; }
+
   #cy {
     position: absolute;
     top: 52px; left: 0; right: 0; bottom: 0;
@@ -248,6 +267,10 @@
     <button id="expand-all" title="Expand all groups">Expand groups</button>
     <button id="collapse-all" title="Collapse all groups">Collapse groups</button>
     <button id="copy-layout" title="Copy current node positions as JSON">Copy layout JSON</button>
+    <div id="tag-filter">
+      <button id="tag-filter-btn" title="Filter the diagram by tag">Tags &#9662;</button>
+      <div id="tag-filter-menu" hidden></div>
+    </div>
     <div class="spacer"></div>
     <div class="hint">Click a node/edge for details · double-click a group to collapse</div>
   </div>
@@ -277,9 +300,19 @@
       - change how a service type looks (color)    -> edit "nodeTypes"
       - group services into a cluster              -> set a node's "parent"
                                                        to another node's "id"
+      - define a new tag                           -> add it to top-level "tags"
+      - tag a service/flow so it shows up in the
+        "Tags" filter dropdown                     -> add a "tags" array to it
     Every node/edge may carry a free-form "details" object -
     whatever keys you put there are rendered automatically
     in the side panel when it's clicked.
+
+    "tags" is separate from "type": type drives color/shape/line style,
+    tags drive nothing visually and exist only to power the "Tags" filter
+    dropdown in the toolbar. Any node or edge may have zero, one, or many
+    tags. The top-level "tags" array is the full list of tags that exist
+    (and controls their order in the dropdown) - a tag can be declared
+    there even before anything uses it yet.
   -->
   <script type="application/json" id="graph-data">
   {
@@ -300,6 +333,7 @@
       "cache":     { "color": "#F76E8E", "lineStyle": "dashed", "width": 1.5, "arrow": "triangle" },
       "file-io":   { "color": "#4CAF50", "lineStyle": "dashed", "width": 1.5, "arrow": "none" }
     },
+    "tags": ["checkout", "fulfillment", "notifications"],
     "nodes": [
       { "id": "grp-frontend", "label": "Frontend",
         "details": { "description": "Client applications and the edge gateway they talk to." } },
@@ -311,89 +345,89 @@
         "details": { "team": "Platform", "description": "Shared messaging, caching, and notification infrastructure." } },
 
       { "id": "web-app", "label": "Web App", "type": "service", "parent": "grp-frontend",
-        "position": { "x": 60, "y": 60 },
+        "position": { "x": 60, "y": 60 }, "tags": ["checkout"],
         "details": { "description": "Customer-facing React SPA.", "repo": "github.com/org/web-app", "owner": "Frontend Guild" } },
       { "id": "mobile-app", "label": "Mobile App", "type": "service", "parent": "grp-frontend",
-        "position": { "x": 60, "y": 200 },
+        "position": { "x": 60, "y": 200 }, "tags": ["checkout"],
         "details": { "description": "iOS/Android client.", "repo": "github.com/org/mobile-app", "owner": "Frontend Guild" } },
       { "id": "api-gateway", "label": "API Gateway", "type": "gateway", "parent": "grp-frontend",
-        "position": { "x": 230, "y": 130 },
+        "position": { "x": 230, "y": 130 }, "tags": ["checkout", "fulfillment"],
         "details": { "description": "Public entry point; auth, rate limiting, routing.", "repo": "github.com/org/api-gateway", "owner": "Platform" } },
 
       { "id": "orders-service", "label": "Orders Service", "type": "service", "parent": "grp-commerce",
-        "position": { "x": 440, "y": 60 },
+        "position": { "x": 440, "y": 60 }, "tags": ["checkout", "fulfillment"],
         "details": { "description": "Owns order lifecycle and publishes order events.", "repo": "github.com/org/orders-service", "owner": "Commerce" } },
       { "id": "inventory-service", "label": "Inventory Service", "type": "service", "parent": "grp-commerce",
-        "position": { "x": 440, "y": 220 },
+        "position": { "x": 440, "y": 220 }, "tags": ["fulfillment"],
         "details": { "description": "Tracks stock levels per SKU/warehouse.", "repo": "github.com/org/inventory-service", "owner": "Commerce" } },
       { "id": "orders-db", "label": "Orders DB", "type": "database", "parent": "grp-commerce",
-        "position": { "x": 600, "y": 60 },
+        "position": { "x": 600, "y": 60 }, "tags": ["checkout", "fulfillment"],
         "details": { "engine": "PostgreSQL", "description": "System of record for orders." } },
       { "id": "inventory-db", "label": "Inventory DB", "type": "database", "parent": "grp-commerce",
-        "position": { "x": 600, "y": 220 },
+        "position": { "x": 600, "y": 220 }, "tags": ["fulfillment"],
         "details": { "engine": "PostgreSQL", "description": "System of record for stock levels." } },
 
       { "id": "payments-service", "label": "Payments Service", "type": "service", "parent": "grp-payments",
-        "position": { "x": 800, "y": 60 },
+        "position": { "x": 800, "y": 60 }, "tags": ["checkout"],
         "details": { "description": "Captures payments and records ledger entries.", "repo": "github.com/org/payments-service", "owner": "Payments" } },
       { "id": "payments-db", "label": "Payments DB", "type": "database", "parent": "grp-payments",
         "position": { "x": 980, "y": 180 },
         "details": { "engine": "PostgreSQL", "description": "Ledger and transaction records." } },
       { "id": "payment-processor", "label": "Stripe", "type": "external",
-        "position": { "x": 1180, "y": 60 },
+        "position": { "x": 1180, "y": 60 }, "tags": ["checkout"],
         "details": { "description": "Third-party payment processor.", "docs": "stripe.com/docs" } },
 
       { "id": "message-bus", "label": "Message Bus", "type": "broker", "parent": "grp-platform",
-        "position": { "x": 340, "y": 420 },
+        "position": { "x": 340, "y": 420 }, "tags": ["fulfillment", "notifications"],
         "details": { "engine": "RabbitMQ", "description": "Async event backbone for order/inventory events." } },
       { "id": "notifications-service", "label": "Notifications Service", "type": "service", "parent": "grp-platform",
-        "position": { "x": 580, "y": 420 },
+        "position": { "x": 580, "y": 420 }, "tags": ["notifications"],
         "details": { "description": "Sends push/email notifications on domain events.", "repo": "github.com/org/notifications-service", "owner": "Platform" } },
       { "id": "websocket-gateway", "label": "Websocket Gateway", "type": "gateway", "parent": "grp-platform",
-        "position": { "x": 820, "y": 460 },
+        "position": { "x": 820, "y": 460 }, "tags": ["notifications"],
         "details": { "description": "Fans out real-time updates to connected clients.", "repo": "github.com/org/ws-gateway", "owner": "Platform" } },
       { "id": "redis-cache", "label": "Redis Cache", "type": "cache", "parent": "grp-platform",
         "position": { "x": 340, "y": 550 },
         "details": { "engine": "Redis", "description": "Read-through cache for hot inventory lookups." } },
       { "id": "file-storage", "label": "S3 Bucket", "type": "storage", "parent": "grp-platform",
-        "position": { "x": 580, "y": 550 },
+        "position": { "x": 580, "y": 550 }, "tags": ["fulfillment"],
         "details": { "engine": "S3", "description": "Durable storage for generated documents." } }
     ],
     "edges": [
-      { "id": "e-web-gw",     "source": "web-app",             "target": "api-gateway",         "type": "rest",      "label": "HTTPS",
+      { "id": "e-web-gw",     "source": "web-app",             "target": "api-gateway",         "type": "rest",      "label": "HTTPS", "tags": ["checkout"],
         "details": { "payload": "Standard REST/JSON requests", "auth": "Bearer JWT" } },
-      { "id": "e-mobile-gw", "source": "mobile-app",           "target": "api-gateway",          "type": "rest",      "label": "HTTPS",
+      { "id": "e-mobile-gw", "source": "mobile-app",           "target": "api-gateway",          "type": "rest",      "label": "HTTPS", "tags": ["checkout"],
         "details": { "payload": "Standard REST/JSON requests", "auth": "Bearer JWT" } },
-      { "id": "e-gw-orders", "source": "api-gateway",          "target": "orders-service",       "type": "rest",      "label": "/orders",
+      { "id": "e-gw-orders", "source": "api-gateway",          "target": "orders-service",       "type": "rest",      "label": "/orders", "tags": ["checkout"],
         "details": { "methods": "GET, POST", "payload": "OrderRequest / OrderResponse" } },
-      { "id": "e-gw-inv",    "source": "api-gateway",          "target": "inventory-service",    "type": "rest",      "label": "/inventory",
+      { "id": "e-gw-inv",    "source": "api-gateway",          "target": "inventory-service",    "type": "rest",      "label": "/inventory", "tags": ["fulfillment"],
         "details": { "methods": "GET", "payload": "StockLevel[]" } },
-      { "id": "e-gw-pay",    "source": "api-gateway",          "target": "payments-service",     "type": "rest",      "label": "/payments",
+      { "id": "e-gw-pay",    "source": "api-gateway",          "target": "payments-service",     "type": "rest",      "label": "/payments", "tags": ["checkout"],
         "details": { "methods": "POST", "payload": "PaymentRequest" } },
-      { "id": "e-gw-ws",     "source": "api-gateway",          "target": "websocket-gateway",    "type": "websocket", "label": "live status",
+      { "id": "e-gw-ws",     "source": "api-gateway",          "target": "websocket-gateway",    "type": "websocket", "label": "live status", "tags": ["notifications"],
         "details": { "description": "Upgrades HTTP connection to WS for live order status updates." } },
 
-      { "id": "e-orders-db",     "source": "orders-service",     "target": "orders-db",        "type": "db", "label": "read/write",
+      { "id": "e-orders-db",     "source": "orders-service",     "target": "orders-db",        "type": "db", "label": "read/write", "tags": ["checkout", "fulfillment"],
         "details": { "notes": "Direct SQL access via connection pool." } },
-      { "id": "e-inventory-db",  "source": "inventory-service",  "target": "inventory-db",     "type": "db", "label": "read/write",
+      { "id": "e-inventory-db",  "source": "inventory-service",  "target": "inventory-db",     "type": "db", "label": "read/write", "tags": ["fulfillment"],
         "details": { "notes": "Direct SQL access via connection pool." } },
-      { "id": "e-payments-db",   "source": "payments-service",   "target": "payments-db",      "type": "db", "label": "read/write",
+      { "id": "e-payments-db",   "source": "payments-service",   "target": "payments-db",      "type": "db", "label": "read/write", "tags": ["checkout"],
         "details": { "notes": "Direct SQL access via connection pool." } },
       { "id": "e-inventory-cache", "source": "inventory-service", "target": "redis-cache",     "type": "cache", "label": "read-through",
         "details": { "ttl": "60s", "notes": "Falls back to inventory-db on cache miss." } },
 
-      { "id": "e-orders-bus",    "source": "orders-service",       "target": "message-bus",         "type": "rabbitmq", "label": "order.created",
+      { "id": "e-orders-bus",    "source": "orders-service",       "target": "message-bus",         "type": "rabbitmq", "label": "order.created", "tags": ["fulfillment"],
         "details": { "payload": "OrderCreatedEvent { orderId, userId, total }", "delivery": "at-least-once" } },
-      { "id": "e-bus-inventory", "source": "message-bus",          "target": "inventory-service",   "type": "rabbitmq", "label": "order.created",
+      { "id": "e-bus-inventory", "source": "message-bus",          "target": "inventory-service",   "type": "rabbitmq", "label": "order.created", "tags": ["fulfillment"],
         "details": { "queue": "inventory.order-created", "notes": "Decrements reserved stock." } },
-      { "id": "e-bus-notify",    "source": "message-bus",          "target": "notifications-service","type": "rabbitmq", "label": "order.created",
+      { "id": "e-bus-notify",    "source": "message-bus",          "target": "notifications-service","type": "rabbitmq", "label": "order.created", "tags": ["notifications"],
         "details": { "queue": "notifications.order-created", "notes": "Triggers order-confirmation email." } },
 
-      { "id": "e-pay-stripe", "source": "payments-service", "target": "payment-processor", "type": "rest", "label": "charge",
+      { "id": "e-pay-stripe", "source": "payments-service", "target": "payment-processor", "type": "rest", "label": "charge", "tags": ["checkout"],
         "details": { "payload": "ChargeRequest { amount, currency, source }", "notes": "Synchronous call, retried with backoff on 5xx." } },
-      { "id": "e-notify-ws",  "source": "notifications-service", "target": "websocket-gateway", "type": "websocket", "label": "push",
+      { "id": "e-notify-ws",  "source": "notifications-service", "target": "websocket-gateway", "type": "websocket", "label": "push", "tags": ["notifications"],
         "details": { "description": "Pushes in-app notification payloads to the gateway for fan-out." } },
-      { "id": "e-orders-invoice", "source": "orders-service", "target": "file-storage", "type": "file-io", "label": "invoice PDF",
+      { "id": "e-orders-invoice", "source": "orders-service", "target": "file-storage", "type": "file-io", "label": "invoice PDF", "tags": ["fulfillment"],
         "details": { "format": "PDF", "notes": "Written once per completed order; referenced by URL from Orders DB." } }
     ]
   }
@@ -410,6 +444,12 @@
     var graph = JSON.parse(document.getElementById('graph-data').textContent);
     var nodeTypes = graph.nodeTypes || {};
     var edgeTypes = graph.edgeTypes || {};
+    var allTags = graph.tags || [];
+
+    // ---------- filter state (type-legend + tag dropdown combine via AND) ----------
+    var hiddenNodeTypes = new Set();
+    var hiddenEdgeTypes = new Set();
+    var selectedTags = new Set();
 
     // ---------- helpers ----------
     function escapeHtml(str) {
@@ -427,16 +467,22 @@
           '</div><div class="detail-val">' + escapeHtml(details[k]) + '</div></div>';
       }).join('');
     }
+    function renderTagChips(tags) {
+      if (!tags || !tags.length) return '';
+      return '<div class="meta-line">Tags: ' + tags.map(function (t) {
+        return '<span class="flow-type">' + escapeHtml(prettyKey(t)) + '</span>';
+      }).join(' ') + '</div>';
+    }
 
     // ---------- build cytoscape elements from data ----------
     var elements = [];
     (graph.nodes || []).forEach(function (n) {
-      var el = { data: { id: n.id, label: n.label, type: n.type, parent: n.parent, details: n.details } };
+      var el = { data: { id: n.id, label: n.label, type: n.type, parent: n.parent, tags: n.tags || [], details: n.details } };
       if (n.position) el.position = n.position;
       elements.push(el);
     });
     (graph.edges || []).forEach(function (e) {
-      elements.push({ data: { id: e.id, source: e.source, target: e.target, type: e.type, label: e.label, details: e.details } });
+      elements.push({ data: { id: e.id, source: e.source, target: e.target, type: e.type, label: e.label, tags: e.tags || [], details: e.details } });
     });
 
     // ---------- build stylesheet from nodeTypes / edgeTypes ----------
@@ -555,6 +601,7 @@
           (typeCfg ? typeCfg.color : '#888') + '"></span>' + escapeHtml(prettyKey(d.type)) + '</div>';
       }
       if (parentLabel) html += '<div class="meta-line">Group: ' + escapeHtml(parentLabel) + '</div>';
+      html += renderTagChips(d.tags);
       html += '<div class="detail-rows">' + describeEntries(d.details) + '</div>';
 
       if (connected.length) {
@@ -593,6 +640,7 @@
         '<span class="arrow">→</span>' +
         '<span class="endpoint-link" data-node-id="' + tgt.id() + '">' + escapeHtml(tgt.data('label')) + '</span>' +
         '</div>';
+      html += renderTagChips(d.tags);
       html += '<div class="detail-rows">' + describeEntries(d.details) + '</div>';
 
       panelContent.innerHTML = html;
@@ -625,7 +673,26 @@
     document.getElementById('zoom-out').addEventListener('click', function () { zoomBy(0.8); });
     document.getElementById('fit').addEventListener('click', function () { cy.animate({ fit: { eles: cy.elements(), padding: 40 } }, { duration: 250 }); });
 
-    // ---------- legend (built from nodeTypes / edgeTypes, drives filtering) ----------
+    // ---------- combined visibility: type-legend AND tag-filter, both computed then applied together ----------
+    function recomputeVisibility() {
+      cy.batch(function () {
+        cy.nodes('[type]').forEach(function (n) {
+          var typeHidden = hiddenNodeTypes.has(n.data('type'));
+          var tags = n.data('tags') || [];
+          var tagHidden = selectedTags.size > 0 && !tags.some(function (t) { return selectedTags.has(t); });
+          n.toggleClass('hidden', typeHidden || tagHidden);
+        });
+        cy.edges().forEach(function (e) {
+          var typeHidden = hiddenEdgeTypes.has(e.data('type'));
+          var tags = e.data('tags') || [];
+          var tagHidden = selectedTags.size > 0 && !tags.some(function (t) { return selectedTags.has(t); });
+          var endpointHidden = e.source().hasClass('hidden') || e.target().hasClass('hidden');
+          e.toggleClass('hidden', typeHidden || tagHidden || endpointHidden);
+        });
+      });
+    }
+
+    // ---------- legend (built from nodeTypes / edgeTypes, drives type filtering) ----------
     function buildLegend() {
       var legend = document.getElementById('legend');
       var html = '<div class="legend-title">Legend</div><div class="legend-subtitle">Flows</div>';
@@ -642,12 +709,52 @@
       legend.addEventListener('change', function (evt) {
         var t = evt.target;
         if (t.matches('input[type="checkbox"]')) {
-          var selector = (t.dataset.kind === 'edge' ? 'edge' : 'node') + '[type = "' + t.dataset.type + '"]';
-          cy.elements(selector).toggleClass('hidden', !t.checked);
+          var set = t.dataset.kind === 'edge' ? hiddenEdgeTypes : hiddenNodeTypes;
+          if (t.checked) set.delete(t.dataset.type); else set.add(t.dataset.type);
+          recomputeVisibility();
         }
       });
     }
     buildLegend();
+
+    // ---------- tag filter dropdown (built from top-level "tags", drives tag filtering) ----------
+    function buildTagFilter() {
+      var wrap = document.getElementById('tag-filter');
+      var btn = document.getElementById('tag-filter-btn');
+      var menu = document.getElementById('tag-filter-menu');
+
+      if (!allTags.length) { wrap.style.display = 'none'; return; }
+
+      menu.innerHTML = allTags.map(function (tag) {
+        return '<label class="legend-row"><input type="checkbox" data-tag="' + escapeHtml(tag) +
+          '" />' + escapeHtml(prettyKey(tag)) + '</label>';
+      }).join('');
+
+      function updateButtonLabel() {
+        btn.innerHTML = (selectedTags.size ? 'Tags (' + selectedTags.size + ')' : 'Tags') + ' &#9662;';
+      }
+
+      menu.addEventListener('change', function (evt) {
+        var t = evt.target;
+        if (t.matches('input[type="checkbox"]')) {
+          if (t.checked) selectedTags.add(t.dataset.tag); else selectedTags.delete(t.dataset.tag);
+          updateButtonLabel();
+          recomputeVisibility();
+        }
+      });
+
+      btn.addEventListener('click', function (evt) {
+        evt.stopPropagation();
+        menu.hidden = !menu.hidden;
+      });
+      document.addEventListener('click', function (evt) {
+        if (!wrap.contains(evt.target)) menu.hidden = true;
+      });
+      document.addEventListener('keydown', function (evt) {
+        if (evt.key === 'Escape') menu.hidden = true;
+      });
+    }
+    buildTagFilter();
 
     // ---------- search ----------
     var searchBox = document.getElementById('search-box');
