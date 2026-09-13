@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dataflow Diagram</title>
+<style>
+  :root {
+    --bg: #f7f8fb;
+    --panel-bg: #ffffff;
+    --border: #dfe3ec;
+    --text: #1f2430;
+    --muted: #6b7280;
+    --accent: #4C82F7;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    overflow: hidden;
+  }
+
+  #toolbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    background: var(--panel-bg);
+    border-bottom: 1px solid var(--border);
+    z-index: 20;
+  }
+  #toolbar h1 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 12px 0 0;
+    white-space: nowrap;
+  }
+  #search-box {
+    flex: 0 1 220px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  #toolbar button {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  #toolbar button:hover { background: #f0f3fb; border-color: var(--accent); }
+  #toolbar .spacer { flex: 1; }
+  #toolbar .hint {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  #cy {
+    position: absolute;
+    top: 52px; left: 0; right: 0; bottom: 0;
+    background: var(--bg);
+    z-index: 1;
+    overflow: hidden;
+  }
+
+  #legend {
+    position: absolute;
+    left: 16px;
+    bottom: 16px;
+    z-index: 15;
+    background: rgba(255,255,255,0.95);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    max-height: 46vh;
+    overflow-y: auto;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    min-width: 150px;
+  }
+  .legend-title { font-weight: 700; margin-bottom: 6px; }
+  .legend-subtitle { font-weight: 600; color: var(--muted); margin: 8px 0 4px; }
+  .legend-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0;
+    cursor: pointer;
+  }
+  .swatch {
+    width: 16px;
+    height: 3px;
+    display: inline-block;
+    border-radius: 2px;
+    flex: 0 0 auto;
+  }
+  .swatch.round {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+
+  #detail-panel {
+    position: fixed;
+    top: 52px; right: 0; bottom: 0;
+    width: 360px;
+    background: var(--panel-bg);
+    border-left: 1px solid var(--border);
+    box-shadow: -4px 0 16px rgba(0,0,0,0.06);
+    transform: translateX(100%);
+    transition: transform 0.18s ease-out;
+    z-index: 25;
+    display: flex;
+    flex-direction: column;
+  }
+  #detail-panel.open { transform: translateX(0); }
+  #panel-shell-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding: 8px 8px 0;
+  }
+  #close-panel {
+    border: none;
+    background: none;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--muted);
+    padding: 4px 8px;
+  }
+  #close-panel:hover { color: var(--text); }
+  #panel-content {
+    padding: 0 20px 20px;
+    overflow-y: auto;
+    flex: 1;
+  }
+  #panel-content h2 { font-size: 18px; margin: 0 0 8px; }
+  #panel-content h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin: 18px 0 6px;
+  }
+  .type-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    background: #f0f2f7;
+    border-radius: 999px;
+    padding: 3px 10px;
+    margin-bottom: 10px;
+  }
+  .meta-line { font-size: 13px; color: var(--muted); margin: 6px 0; }
+  .flow-endpoints { display: flex; align-items: center; gap: 8px; font-size: 13px; flex-wrap: wrap; }
+  .endpoint-link {
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  .detail-rows { margin-top: 6px; }
+  .detail-row {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 0;
+    border-bottom: 1px solid #f0f1f5;
+  }
+  .detail-key {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .detail-val { font-size: 13.5px; margin-top: 2px; word-break: break-word; }
+  .flow-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 13px;
+  }
+  .flow-list li {
+    padding: 6px 4px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: space-between;
+  }
+  .flow-list li:hover { background: #f0f3fb; }
+  .flow-type {
+    font-size: 11px;
+    color: var(--muted);
+    background: #f0f2f7;
+    border-radius: 999px;
+    padding: 1px 8px;
+  }
+
+  textarea#layout-fallback {
+    width: 100%;
+    height: 320px;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px;
+  }
+
+  #toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translate(-50%, 12px);
+    background: #1f2430;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 40;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+
+  <div id="toolbar">
+    <h1>Dataflow Diagram</h1>
+    <input id="search-box" type="text" placeholder="Search services…" />
+    <button id="zoom-in" title="Zoom in">+</button>
+    <button id="zoom-out" title="Zoom out">&minus;</button>
+    <button id="fit" title="Fit diagram to screen">Fit</button>
+    <button id="expand-all" title="Expand all groups">Expand groups</button>
+    <button id="collapse-all" title="Collapse all groups">Collapse groups</button>
+    <button id="copy-layout" title="Copy current node positions as JSON">Copy layout JSON</button>
+    <div class="spacer"></div>
+    <div class="hint">Click a node/edge for details · double-click a group to collapse</div>
+  </div>
+
+  <div id="cy"></div>
+
+  <div id="legend"></div>
+
+  <div id="detail-panel">
+    <div id="panel-shell-header">
+      <button id="close-panel" title="Close">&times;</button>
+    </div>
+    <div id="panel-content"></div>
+  </div>
+
+  <div id="toast"></div>
+
+  <!--
+    ============================================================
+    EDITABLE DATA BLOCK
+    ============================================================
+    Everything that describes the diagram lives in this JSON
+    block. Nothing below this tag needs to change to:
+      - add/remove/rename a microservice          -> edit "nodes"
+      - add/remove/rename a data flow              -> edit "edges"
+      - change how a flow type looks (color/line)  -> edit "edgeTypes"
+      - change how a service type looks (color)    -> edit "nodeTypes"
+      - group services into a cluster              -> set a node's "parent"
+                                                       to another node's "id"
+    Every node/edge may carry a free-form "details" object -
+    whatever keys you put there are rendered automatically
+    in the side panel when it's clicked.
+  -->
+  <script type="application/json" id="graph-data">
+  {
+    "nodeTypes": {
+      "gateway":  { "color": "#2F5FD9" },
+      "service":  { "color": "#4C82F7" },
+      "broker":   { "color": "#E0A800" },
+      "database": { "color": "#F79B4C" },
+      "cache":    { "color": "#F76E8E" },
+      "storage":  { "color": "#4CAF50" },
+      "external": { "color": "#9AA0A6" }
+    },
+    "edgeTypes": {
+      "rest":      { "color": "#4C82F7", "lineStyle": "solid",  "width": 2,   "arrow": "triangle" },
+      "rabbitmq":  { "color": "#E0A800", "lineStyle": "dashed", "width": 2,   "arrow": "triangle" },
+      "websocket": { "color": "#8E5CF7", "lineStyle": "dotted", "width": 2,   "arrow": "triangle" },
+      "db":        { "color": "#C77A3B", "lineStyle": "solid",  "width": 1.5, "arrow": "triangle" },
+      "cache":     { "color": "#F76E8E", "lineStyle": "dashed", "width": 1.5, "arrow": "triangle" },
+      "file-io":   { "color": "#4CAF50", "lineStyle": "dashed", "width": 1.5, "arrow": "none" }
+    },
+    "nodes": [
+      { "id": "grp-frontend", "label": "Frontend",
+        "details": { "description": "Client applications and the edge gateway they talk to." } },
+      { "id": "grp-commerce", "label": "Commerce",
+        "details": { "team": "Commerce", "description": "Order and inventory management." } },
+      { "id": "grp-payments", "label": "Payments",
+        "details": { "team": "Payments", "description": "Payment capture and reconciliation." } },
+      { "id": "grp-platform", "label": "Platform Infra",
+        "details": { "team": "Platform", "description": "Shared messaging, caching, and notification infrastructure." } },
+
+      { "id": "web-app", "label": "Web App", "type": "service", "parent": "grp-frontend",
+        "position": { "x": 60, "y": 60 },
+        "details": { "description": "Customer-facing React SPA.", "repo": "github.com/org/web-app", "owner": "Frontend Guild" } },
+      { "id": "mobile-app", "label": "Mobile App", "type": "service", "parent": "grp-frontend",
+        "position": { "x": 60, "y": 200 },
+        "details": { "description": "iOS/Android client.", "repo": "github.com/org/mobile-app", "owner": "Frontend Guild" } },
+      { "id": "api-gateway", "label": "API Gateway", "type": "gateway", "parent": "grp-frontend",
+        "position": { "x": 230, "y": 130 },
+        "details": { "description": "Public entry point; auth, rate limiting, routing.", "repo": "github.com/org/api-gateway", "owner": "Platform" } },
+
+      { "id": "orders-service", "label": "Orders Service", "type": "service", "parent": "grp-commerce",
+        "position": { "x": 440, "y": 60 },
+        "details": { "description": "Owns order lifecycle and publishes order events.", "repo": "github.com/org/orders-service", "owner": "Commerce" } },
+      { "id": "inventory-service", "label": "Inventory Service", "type": "service", "parent": "grp-commerce",
+        "position": { "x": 440, "y": 220 },
+        "details": { "description": "Tracks stock levels per SKU/warehouse.", "repo": "github.com/org/inventory-service", "owner": "Commerce" } },
+      { "id": "orders-db", "label": "Orders DB", "type": "database", "parent": "grp-commerce",
+        "position": { "x": 600, "y": 60 },
+        "details": { "engine": "PostgreSQL", "description": "System of record for orders." } },
+      { "id": "inventory-db", "label": "Inventory DB", "type": "database", "parent": "grp-commerce",
+        "position": { "x": 600, "y": 220 },
+        "details": { "engine": "PostgreSQL", "description": "System of record for stock levels." } },
+
+      { "id": "payments-service", "label": "Payments Service", "type": "service", "parent": "grp-payments",
+        "position": { "x": 800, "y": 60 },
+        "details": { "description": "Captures payments and records ledger entries.", "repo": "github.com/org/payments-service", "owner": "Payments" } },
+      { "id": "payments-db", "label": "Payments DB", "type": "database", "parent": "grp-payments",
+        "position": { "x": 980, "y": 180 },
+        "details": { "engine": "PostgreSQL", "description": "Ledger and transaction records." } },
+      { "id": "payment-processor", "label": "Stripe", "type": "external",
+        "position": { "x": 1180, "y": 60 },
+        "details": { "description": "Third-party payment processor.", "docs": "stripe.com/docs" } },
+
+      { "id": "message-bus", "label": "Message Bus", "type": "broker", "parent": "grp-platform",
+        "position": { "x": 340, "y": 420 },
+        "details": { "engine": "RabbitMQ", "description": "Async event backbone for order/inventory events." } },
+      { "id": "notifications-service", "label": "Notifications Service", "type": "service", "parent": "grp-platform",
+        "position": { "x": 580, "y": 420 },
+        "details": { "description": "Sends push/email notifications on domain events.", "repo": "github.com/org/notifications-service", "owner": "Platform" } },
+      { "id": "websocket-gateway", "label": "Websocket Gateway", "type": "gateway", "parent": "grp-platform",
+        "position": { "x": 820, "y": 460 },
+        "details": { "description": "Fans out real-time updates to connected clients.", "repo": "github.com/org/ws-gateway", "owner": "Platform" } },
+      { "id": "redis-cache", "label": "Redis Cache", "type": "cache", "parent": "grp-platform",
+        "position": { "x": 340, "y": 550 },
+        "details": { "engine": "Redis", "description": "Read-through cache for hot inventory lookups." } },
+      { "id": "file-storage", "label": "S3 Bucket", "type": "storage", "parent": "grp-platform",
+        "position": { "x": 580, "y": 550 },
+        "details": { "engine": "S3", "description": "Durable storage for generated documents." } }
+    ],
+    "edges": [
+      { "id": "e-web-gw",     "source": "web-app",             "target": "api-gateway",         "type": "rest",      "label": "HTTPS",
+        "details": { "payload": "Standard REST/JSON requests", "auth": "Bearer JWT" } },
+      { "id": "e-mobile-gw", "source": "mobile-app",           "target": "api-gateway",          "type": "rest",      "label": "HTTPS",
+        "details": { "payload": "Standard REST/JSON requests", "auth": "Bearer JWT" } },
+      { "id": "e-gw-orders", "source": "api-gateway",          "target": "orders-service",       "type": "rest",      "label": "/orders",
+        "details": { "methods": "GET, POST", "payload": "OrderRequest / OrderResponse" } },
+      { "id": "e-gw-inv",    "source": "api-gateway",          "target": "inventory-service",    "type": "rest",      "label": "/inventory",
+        "details": { "methods": "GET", "payload": "StockLevel[]" } },
+      { "id": "e-gw-pay",    "source": "api-gateway",          "target": "payments-service",     "type": "rest",      "label": "/payments",
+        "details": { "methods": "POST", "payload": "PaymentRequest" } },
+      { "id": "e-gw-ws",     "source": "api-gateway",          "target": "websocket-gateway",    "type": "websocket", "label": "live status",
+        "details": { "description": "Upgrades HTTP connection to WS for live order status updates." } },
+
+      { "id": "e-orders-db",     "source": "orders-service",     "target": "orders-db",        "type": "db", "label": "read/write",
+        "details": { "notes": "Direct SQL access via connection pool." } },
+      { "id": "e-inventory-db",  "source": "inventory-service",  "target": "inventory-db",     "type": "db", "label": "read/write",
+        "details": { "notes": "Direct SQL access via connection pool." } },
+      { "id": "e-payments-db",   "source": "payments-service",   "target": "payments-db",      "type": "db", "label": "read/write",
+        "details": { "notes": "Direct SQL access via connection pool." } },
+      { "id": "e-inventory-cache", "source": "inventory-service", "target": "redis-cache",     "type": "cache", "label": "read-through",
+        "details": { "ttl": "60s", "notes": "Falls back to inventory-db on cache miss." } },
+
+      { "id": "e-orders-bus",    "source": "orders-service",       "target": "message-bus",         "type": "rabbitmq", "label": "order.created",
+        "details": { "payload": "OrderCreatedEvent { orderId, userId, total }", "delivery": "at-least-once" } },
+      { "id": "e-bus-inventory", "source": "message-bus",          "target": "inventory-service",   "type": "rabbitmq", "label": "order.created",
+        "details": { "queue": "inventory.order-created", "notes": "Decrements reserved stock." } },
+      { "id": "e-bus-notify",    "source": "message-bus",          "target": "notifications-service","type": "rabbitmq", "label": "order.created",
+        "details": { "queue": "notifications.order-created", "notes": "Triggers order-confirmation email." } },
+
+      { "id": "e-pay-stripe", "source": "payments-service", "target": "payment-processor", "type": "rest", "label": "charge",
+        "details": { "payload": "ChargeRequest { amount, currency, source }", "notes": "Synchronous call, retried with backoff on 5xx." } },
+      { "id": "e-notify-ws",  "source": "notifications-service", "target": "websocket-gateway", "type": "websocket", "label": "push",
+        "details": { "description": "Pushes in-app notification payloads to the gateway for fan-out." } },
+      { "id": "e-orders-invoice", "source": "orders-service", "target": "file-storage", "type": "file-io", "label": "invoice PDF",
+        "details": { "format": "PDF", "notes": "Written once per completed order; referenced by URL from Orders DB." } }
+    ]
+  }
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.34.2/dist/cytoscape.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cytoscape-expand-collapse@4.1.1/cytoscape-expand-collapse.min.js"></script>
+
+  <script>
+  (function () {
+    'use strict';
+
+    // ---------- load data ----------
+    var graph = JSON.parse(document.getElementById('graph-data').textContent);
+    var nodeTypes = graph.nodeTypes || {};
+    var edgeTypes = graph.edgeTypes || {};
+
+    // ---------- helpers ----------
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function prettyKey(key) {
+      return String(key).replace(/[-_]/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+    }
+    function describeEntries(details) {
+      if (!details) return '';
+      return Object.keys(details).map(function (k) {
+        return '<div class="detail-row"><div class="detail-key">' + escapeHtml(prettyKey(k)) +
+          '</div><div class="detail-val">' + escapeHtml(details[k]) + '</div></div>';
+      }).join('');
+    }
+
+    // ---------- build cytoscape elements from data ----------
+    var elements = [];
+    (graph.nodes || []).forEach(function (n) {
+      var el = { data: { id: n.id, label: n.label, type: n.type, parent: n.parent, details: n.details } };
+      if (n.position) el.position = n.position;
+      elements.push(el);
+    });
+    (graph.edges || []).forEach(function (e) {
+      elements.push({ data: { id: e.id, source: e.source, target: e.target, type: e.type, label: e.label, details: e.details } });
+    });
+
+    // ---------- build stylesheet from nodeTypes / edgeTypes ----------
+    function buildStylesheet() {
+      var style = [
+        { selector: 'node', style: {
+            'label': 'data(label)',
+            'text-valign': 'bottom',
+            'text-margin-y': 6,
+            'font-size': 11,
+            'color': '#222',
+            'text-wrap': 'wrap',
+            'text-max-width': 90,
+            'width': 56,
+            'height': 56,
+            'background-color': '#888',
+            'shape': 'ellipse',
+            'border-width': 2,
+            'border-color': '#fff'
+        } },
+        { selector: 'node:parent', style: {
+            'shape': 'roundrectangle',
+            'background-color': '#eef1f8',
+            'background-opacity': 0.6,
+            'border-width': 1.5,
+            'border-color': '#c7ccda',
+            'border-style': 'dashed',
+            'label': 'data(label)',
+            'text-valign': 'top',
+            'text-halign': 'center',
+            'font-size': 12,
+            'font-weight': 'bold',
+            'color': '#5a6178',
+            'padding': 24,
+            'width': 'label',
+            'height': 'label'
+        } },
+        { selector: 'edge', style: {
+            'curve-style': 'bezier',
+            'label': 'data(label)',
+            'font-size': 9,
+            'color': '#444',
+            'text-background-color': '#fff',
+            'text-background-opacity': 0.85,
+            'text-background-padding': 2,
+            'target-arrow-shape': 'triangle',
+            'width': 2,
+            'line-color': '#999',
+            'target-arrow-color': '#999'
+        } },
+        { selector: '.hidden', style: { 'display': 'none' } },
+        { selector: '.faded', style: { 'opacity': 0.12 } },
+        { selector: '.highlighted', style: { 'opacity': 1 } },
+        { selector: 'node:selected', style: { 'border-color': '#222', 'border-width': 3 } },
+        { selector: 'edge:selected', style: { 'width': 4 } }
+      ];
+
+      Object.keys(nodeTypes).forEach(function (type) {
+        style.push({ selector: 'node[type = "' + type + '"]', style: { 'background-color': nodeTypes[type].color } });
+      });
+      Object.keys(edgeTypes).forEach(function (type) {
+        var cfg = edgeTypes[type];
+        style.push({ selector: 'edge[type = "' + type + '"]', style: {
+          'line-color': cfg.color,
+          'target-arrow-color': cfg.color,
+          'line-style': cfg.lineStyle || 'solid',
+          'width': cfg.width || 2,
+          'target-arrow-shape': cfg.arrow || 'triangle'
+        } });
+      });
+      return style;
+    }
+
+    // ---------- init cytoscape ----------
+    var cy = cytoscape({
+      container: document.getElementById('cy'),
+      elements: elements,
+      style: buildStylesheet(),
+      layout: { name: 'preset' },
+      wheelSensitivity: 0.25,
+      minZoom: 0.1,
+      maxZoom: 4
+    });
+
+    var ec = cy.expandCollapse({
+      layoutBy: null,
+      fisheye: false,
+      animate: true,
+      undoable: false
+    });
+
+    // ---------- detail panel ----------
+    var panel = document.getElementById('detail-panel');
+    var panelContent = document.getElementById('panel-content');
+
+    function openPanel() { panel.classList.add('open'); }
+    function closePanel() { panel.classList.remove('open'); cy.elements().unselect(); }
+
+    function inspect(ele) {
+      cy.elements().unselect();
+      ele.select();
+      if (ele.isNode()) renderNodePanel(ele); else renderEdgePanel(ele);
+      openPanel();
+    }
+
+    function renderNodePanel(node) {
+      var d = node.data();
+      var typeCfg = nodeTypes[d.type];
+      var parent = node.parent();
+      var parentLabel = parent && parent.length ? parent[0].data('label') : null;
+      var connected = node.connectedEdges();
+
+      var html = '<h2>' + escapeHtml(d.label) + '</h2>';
+      if (d.type) {
+        html += '<div class="type-chip"><span class="swatch round" style="background:' +
+          (typeCfg ? typeCfg.color : '#888') + '"></span>' + escapeHtml(prettyKey(d.type)) + '</div>';
+      }
+      if (parentLabel) html += '<div class="meta-line">Group: ' + escapeHtml(parentLabel) + '</div>';
+      html += '<div class="detail-rows">' + describeEntries(d.details) + '</div>';
+
+      if (connected.length) {
+        html += '<h3>Connected flows (' + connected.length + ')</h3><ul class="flow-list">';
+        connected.forEach(function (e) {
+          var ed = e.data();
+          var otherId = ed.source === d.id ? ed.target : ed.source;
+          var otherNode = cy.getElementById(otherId);
+          var dir = ed.source === d.id ? '→' : '←';
+          html += '<li data-edge-id="' + e.id() + '"><span>' + dir + ' ' +
+            escapeHtml(otherNode.data('label')) + '</span><span class="flow-type">' +
+            escapeHtml(prettyKey(ed.type)) + '</span></li>';
+        });
+        html += '</ul>';
+      }
+
+      panelContent.innerHTML = html;
+      panelContent.querySelectorAll('.flow-list li').forEach(function (li) {
+        li.addEventListener('click', function () { inspect(cy.getElementById(li.dataset.edgeId)); });
+      });
+    }
+
+    function renderEdgePanel(edge) {
+      var d = edge.data();
+      var typeCfg = edgeTypes[d.type];
+      var src = cy.getElementById(d.source);
+      var tgt = cy.getElementById(d.target);
+
+      var html = '<h2>' + escapeHtml(d.label || (src.data('label') + ' → ' + tgt.data('label'))) + '</h2>';
+      if (d.type) {
+        html += '<div class="type-chip"><span class="swatch" style="background:' +
+          (typeCfg ? typeCfg.color : '#888') + '"></span>' + escapeHtml(prettyKey(d.type)) + '</div>';
+      }
+      html += '<div class="meta-line flow-endpoints">' +
+        '<span class="endpoint-link" data-node-id="' + src.id() + '">' + escapeHtml(src.data('label')) + '</span>' +
+        '<span class="arrow">→</span>' +
+        '<span class="endpoint-link" data-node-id="' + tgt.id() + '">' + escapeHtml(tgt.data('label')) + '</span>' +
+        '</div>';
+      html += '<div class="detail-rows">' + describeEntries(d.details) + '</div>';
+
+      panelContent.innerHTML = html;
+      panelContent.querySelectorAll('.endpoint-link').forEach(function (el) {
+        el.addEventListener('click', function () { inspect(cy.getElementById(el.dataset.nodeId)); });
+      });
+    }
+
+    cy.on('tap', 'node', function (evt) { inspect(evt.target); });
+    cy.on('tap', 'edge', function (evt) { inspect(evt.target); });
+    cy.on('tap', function (evt) { if (evt.target === cy) closePanel(); });
+
+    document.getElementById('close-panel').addEventListener('click', closePanel);
+    document.addEventListener('keydown', function (evt) { if (evt.key === 'Escape') closePanel(); });
+
+    // ---------- expand / collapse groups ----------
+    cy.on('dbltap', 'node', function (evt) {
+      var n = evt.target;
+      if (ec.isCollapsible(n)) ec.collapse(n);
+      else if (ec.isExpandable(n)) ec.expand(n);
+    });
+    document.getElementById('expand-all').addEventListener('click', function () { ec.expandAll(); });
+    document.getElementById('collapse-all').addEventListener('click', function () { ec.collapseAll(); });
+
+    // ---------- zoom controls ----------
+    function zoomBy(factor) {
+      cy.zoom({ level: cy.zoom() * factor, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
+    }
+    document.getElementById('zoom-in').addEventListener('click', function () { zoomBy(1.25); });
+    document.getElementById('zoom-out').addEventListener('click', function () { zoomBy(0.8); });
+    document.getElementById('fit').addEventListener('click', function () { cy.animate({ fit: { eles: cy.elements(), padding: 40 } }, { duration: 250 }); });
+
+    // ---------- legend (built from nodeTypes / edgeTypes, drives filtering) ----------
+    function buildLegend() {
+      var legend = document.getElementById('legend');
+      var html = '<div class="legend-title">Legend</div><div class="legend-subtitle">Flows</div>';
+      Object.keys(edgeTypes).forEach(function (type) {
+        html += '<label class="legend-row"><input type="checkbox" checked data-kind="edge" data-type="' + type +
+          '" /><span class="swatch" style="background:' + edgeTypes[type].color + '"></span>' + escapeHtml(prettyKey(type)) + '</label>';
+      });
+      html += '<div class="legend-subtitle">Services</div>';
+      Object.keys(nodeTypes).forEach(function (type) {
+        html += '<label class="legend-row"><input type="checkbox" checked data-kind="node" data-type="' + type +
+          '" /><span class="swatch round" style="background:' + nodeTypes[type].color + '"></span>' + escapeHtml(prettyKey(type)) + '</label>';
+      });
+      legend.innerHTML = html;
+      legend.addEventListener('change', function (evt) {
+        var t = evt.target;
+        if (t.matches('input[type="checkbox"]')) {
+          var selector = (t.dataset.kind === 'edge' ? 'edge' : 'node') + '[type = "' + t.dataset.type + '"]';
+          cy.elements(selector).toggleClass('hidden', !t.checked);
+        }
+      });
+    }
+    buildLegend();
+
+    // ---------- search ----------
+    var searchBox = document.getElementById('search-box');
+    searchBox.addEventListener('input', function () {
+      var q = searchBox.value.trim().toLowerCase();
+      cy.batch(function () {
+        cy.elements().removeClass('faded highlighted');
+        if (!q) return;
+        var matches = cy.nodes().filter(function (n) {
+          return (n.data('label') || '').toLowerCase().indexOf(q) !== -1;
+        });
+        if (matches.length === 0) return;
+        cy.elements().addClass('faded');
+        matches.removeClass('faded').addClass('highlighted');
+        matches.connectedEdges().removeClass('faded');
+        matches.ancestors().removeClass('faded');
+        cy.animate({ fit: { eles: matches, padding: 100 } }, { duration: 250 });
+      });
+    });
+
+    // ---------- copy layout as JSON ----------
+    function flashToast(msg) {
+      var toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(function () { toast.classList.remove('show'); }, 1800);
+    }
+    document.getElementById('copy-layout').addEventListener('click', function () {
+      var positions = cy.nodes(':childless').map(function (n) {
+        return { id: n.id(), position: { x: Math.round(n.position('x')), y: Math.round(n.position('y')) } };
+      });
+      var json = JSON.stringify(positions, null, 2);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(json).then(function () {
+          flashToast('Layout copied to clipboard');
+        }).catch(function () { showLayoutFallback(json); });
+      } else {
+        showLayoutFallback(json);
+      }
+    });
+    function showLayoutFallback(json) {
+      panelContent.innerHTML = '<h2>Layout JSON</h2><div class="meta-line">Clipboard access was blocked — select all and copy manually.</div>' +
+        '<textarea id="layout-fallback" readonly></textarea>';
+      document.getElementById('layout-fallback').value = json;
+      openPanel();
+    }
+
+    // ---------- keep canvas sized on window resize ----------
+    window.addEventListener('resize', function () { cy.resize(); });
+  })();
+  </script>
+
+</body>
+</html>
