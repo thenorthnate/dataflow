@@ -1,0 +1,13 @@
+# Datasets are private by default.
+#
+# Anything you drop into data/ is ignored unless it is explicitly un-ignored
+# below. This fails closed on purpose: data/local.js will usually describe
+# internal infrastructure, and it must not be possible to commit it here by
+# accident.
+#
+# To version your own data, see the "Keeping your data in git" section of
+# README.md.
+data/*.js
+!data/example.js
+
+.DS_Store

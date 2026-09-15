@@ -11,6 +11,14 @@ the file, so adding a service or a new flow type is a data edit, never a
 markup/JS edit. Clicking a node or edge opens a detail panel. The canvas
 supports pan/zoom and stays usable as the diagram grows large.
 
+> **Superseded in one respect.** The data no longer lives in a JSON block
+> inside `index.html`; it lives in `data/local.js` (gitignored) so the tool and
+> the data can be pulled and versioned separately. The schema below is still
+> accurate, but [`data/README.md`](data/README.md) is the authoritative
+> reference now, and [`PLAN-DATA.md`](PLAN-DATA.md) explains the split.
+> Everything else here — the library choice, filtering model, and interaction
+> design — is unchanged.
+
 ## Recommended library: Cytoscape.js
 
 https://js.cytoscape.org/ — MIT-licensed, dependency-free, loads from a CDN

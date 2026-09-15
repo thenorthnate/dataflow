@@ -263,19 +263,129 @@
     z-index: 40;
   }
   #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  #dataset-picker {
+    flex: none;
+    max-width: 200px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  #dataset-picker[hidden] { display: none; }
+
+  #warning-banner {
+    position: fixed;
+    top: 52px; left: 0; right: 0;
+    z-index: 18;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 12px;
+    background: #fff8e1;
+    border-bottom: 1px solid #efd88f;
+    color: #5b4708;
+    font-size: 13px;
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+  #warning-banner[hidden] { display: none; }
+  #warning-banner .grow { flex: 1; min-width: 0; }
+  #warning-banner ul { margin: 6px 0 0; padding-left: 18px; }
+  #warning-banner ul[hidden] { display: none; }
+  #warning-banner li { padding: 1px 0; }
+  #warning-banner button {
+    flex: none;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: #5b4708;
+    font-size: 13px;
+    padding: 0 4px;
+  }
+  #warning-banner .toggle { text-decoration: underline; }
+  #warning-banner .close { font-size: 18px; line-height: 1; }
+
+  #setup-screen {
+    position: absolute;
+    top: 52px; left: 0; right: 0; bottom: 0;
+    z-index: 19;
+    background: var(--bg);
+    overflow-y: auto;
+    padding: 40px 24px;
+  }
+  #setup-screen[hidden] { display: none; }
+  .setup-card {
+    max-width: 640px;
+    margin: 0 auto;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px 32px;
+  }
+  .setup-card h2 { margin: 0 0 10px; font-size: 20px; }
+  .setup-card p { font-size: 14px; line-height: 1.55; color: #3d4250; }
+  .setup-card code {
+    font-family: ui-monospace, monospace;
+    font-size: 12.5px;
+    background: #f0f2f7;
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+  .setup-card pre {
+    background: #f4f6fa;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: ui-monospace, monospace;
+    font-size: 12.5px;
+    overflow-x: auto;
+  }
+  .setup-card .err {
+    background: #fff1f0;
+    border: 1px solid #f5c2c0;
+    color: #8a2622;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-family: ui-monospace, monospace;
+  }
+
+  @media (max-width: 1100px) { #toolbar .hint { display: none; } }
 </style>
+<script>
+  // Files in data/ register themselves by calling dataflow({...}). This shim
+  // has to exist before any of them load, so it lives here rather than with
+  // the main script at the bottom of the page.
+  window.__dataflowDatasets = [];
+  window.dataflow = function (ds) { window.__dataflowDatasets.push(ds); };
+
+  // A syntax error inside a data file reports here, while a *missing* file
+  // instead fires an error event on its script element. That difference is
+  // what lets the loader tell "you haven't set up data yet" apart from
+  // "your data file has a typo in it" instead of silently showing the demo.
+  window.__dataflowErrors = [];
+  window.onerror = function (msg, url, line) {
+    window.__dataflowErrors.push({ msg: msg, url: url, line: line });
+    return false;
+  };
+</script>
 </head>
 <body>
 
   <div id="toolbar">
-    <h1>Dataflow Diagram</h1>
+    <h1 id="diagram-title">Dataflow Diagram</h1>
+    <select id="dataset-picker" title="Switch dataset" hidden></select>
     <input id="search-box" type="text" placeholder="Search services…" />
     <button id="zoom-in" title="Zoom in">+</button>
     <button id="zoom-out" title="Zoom out">&minus;</button>
     <button id="fit" title="Fit diagram to screen">Fit</button>
     <button id="expand-all" title="Expand all groups">Expand groups</button>
     <button id="collapse-all" title="Collapse all groups">Collapse groups</button>
-    <button id="copy-layout" title="Copy current node positions as JSON">Copy layout JSON</button>
+    <button id="copy-layout" title="Copy just the node positions, to paste over the positions in your data file">Copy layout</button>
+    <button id="copy-data" title="Copy this whole dataset as a ready-to-paste data file, with current positions">Copy data file</button>
     <div id="tag-filter">
       <button id="tag-filter-btn" title="Filter the diagram by tag">Tags &#9662;</button>
       <div id="tag-filter-menu" hidden></div>
@@ -284,7 +394,11 @@
     <div class="hint">Click a node/edge for details · double-click a group to collapse</div>
   </div>
 
+  <div id="warning-banner" hidden></div>
+
   <div id="cy"></div>
+
+  <div id="setup-screen" hidden></div>
 
   <div id="legend"></div>
 
@@ -297,151 +411,6 @@
 
   <div id="toast"></div>
 
-  <!--
-    ============================================================
-    EDITABLE DATA BLOCK
-    ============================================================
-    Everything that describes the diagram lives in this JSON
-    block. Nothing below this tag needs to change to:
-      - add/remove/rename a microservice          -> edit "nodes"
-      - add/remove/rename a data flow              -> edit "edges"
-      - change how a flow type looks (color/line)  -> edit "edgeTypes"
-      - change how a service type looks (color)    -> edit "nodeTypes"
-      - group services into a cluster              -> set a node's "parent"
-                                                       to another node's "id"
-      - define a new tag                           -> add it to top-level "tags"
-      - tag a service/flow so it shows up in the
-        "Tags" filter dropdown                     -> add a "tags" array to it
-    Every node/edge may carry a free-form "details" object -
-    whatever keys you put there are rendered automatically
-    in the side panel when it's clicked.
-
-    "tags" is separate from "type": type drives color/shape/line style,
-    tags drive nothing visually and exist only to power the "Tags" filter
-    dropdown in the toolbar. Any node or edge may have zero, one, or many
-    tags. The top-level "tags" array is the full list of tags that exist
-    (and controls their order in the dropdown) - a tag can be declared
-    there even before anything uses it yet.
-  -->
-  <script type="application/json" id="graph-data">
-  {
-    "nodeTypes": {
-      "gateway":  { "color": "#2F5FD9" },
-      "service":  { "color": "#4C82F7" },
-      "broker":   { "color": "#E0A800" },
-      "database": { "color": "#F79B4C" },
-      "cache":    { "color": "#F76E8E" },
-      "storage":  { "color": "#4CAF50" },
-      "external": { "color": "#9AA0A6" }
-    },
-    "edgeTypes": {
-      "rest":      { "color": "#4C82F7", "lineStyle": "solid",  "width": 2,   "arrow": "triangle" },
-      "rabbitmq":  { "color": "#E0A800", "lineStyle": "dashed", "width": 2,   "arrow": "triangle" },
-      "websocket": { "color": "#8E5CF7", "lineStyle": "dotted", "width": 2,   "arrow": "triangle" },
-      "db":        { "color": "#C77A3B", "lineStyle": "solid",  "width": 1.5, "arrow": "triangle" },
-      "cache":     { "color": "#F76E8E", "lineStyle": "dashed", "width": 1.5, "arrow": "triangle" },
-      "file-io":   { "color": "#4CAF50", "lineStyle": "dashed", "width": 1.5, "arrow": "none" }
-    },
-    "tags": ["checkout", "fulfillment", "notifications"],
-    "nodes": [
-      { "id": "grp-frontend", "label": "Frontend",
-        "details": { "description": "Client applications and the edge gateway they talk to." } },
-      { "id": "grp-commerce", "label": "Commerce",
-        "details": { "team": "Commerce", "description": "Order and inventory management." } },
-      { "id": "grp-payments", "label": "Payments",
-        "details": { "team": "Payments", "description": "Payment capture and reconciliation." } },
-      { "id": "grp-platform", "label": "Platform Infra",
-        "details": { "team": "Platform", "description": "Shared messaging, caching, and notification infrastructure." } },
-
-      { "id": "web-app", "label": "Web App", "type": "service", "parent": "grp-frontend",
-        "position": { "x": 60, "y": 60 }, "tags": ["checkout"],
-        "details": { "description": "Customer-facing React SPA.", "repo": "github.com/org/web-app", "owner": "Frontend Guild" } },
-      { "id": "mobile-app", "label": "Mobile App", "type": "service", "parent": "grp-frontend",
-        "position": { "x": 60, "y": 200 }, "tags": ["checkout"],
-        "details": { "description": "iOS/Android client.", "repo": "github.com/org/mobile-app", "owner": "Frontend Guild" } },
-      { "id": "api-gateway", "label": "API Gateway", "type": "gateway", "parent": "grp-frontend",
-        "position": { "x": 230, "y": 130 }, "tags": ["checkout", "fulfillment"],
-        "details": { "description": "Public entry point; auth, rate limiting, routing.", "repo": "github.com/org/api-gateway", "owner": "Platform" } },
-
-      { "id": "orders-service", "label": "Orders Service", "type": "service", "parent": "grp-commerce",
-        "position": { "x": 440, "y": 60 }, "tags": ["checkout", "fulfillment"],
-        "details": { "description": "Owns order lifecycle and publishes order events.", "repo": "github.com/org/orders-service", "owner": "Commerce" } },
-      { "id": "inventory-service", "label": "Inventory Service", "type": "service", "parent": "grp-commerce",
-        "position": { "x": 440, "y": 220 }, "tags": ["fulfillment"],
-        "details": { "description": "Tracks stock levels per SKU/warehouse.", "repo": "github.com/org/inventory-service", "owner": "Commerce" } },
-      { "id": "orders-db", "label": "Orders DB", "type": "database", "parent": "grp-commerce",
-        "position": { "x": 600, "y": 60 }, "tags": ["checkout", "fulfillment"],
-        "details": { "engine": "PostgreSQL", "description": "System of record for orders." } },
-      { "id": "inventory-db", "label": "Inventory DB", "type": "database", "parent": "grp-commerce",
-        "position": { "x": 600, "y": 220 }, "tags": ["fulfillment"],
-        "details": { "engine": "PostgreSQL", "description": "System of record for stock levels." } },
-
-      { "id": "payments-service", "label": "Payments Service", "type": "service", "parent": "grp-payments",
-        "position": { "x": 800, "y": 60 }, "tags": ["checkout"],
-        "details": { "description": "Captures payments and records ledger entries.", "repo": "github.com/org/payments-service", "owner": "Payments" } },
-      { "id": "payments-db", "label": "Payments DB", "type": "database", "parent": "grp-payments",
-        "position": { "x": 980, "y": 180 },
-        "details": { "engine": "PostgreSQL", "description": "Ledger and transaction records." } },
-      { "id": "payment-processor", "label": "Stripe", "type": "external",
-        "position": { "x": 1180, "y": 60 }, "tags": ["checkout"],
-        "details": { "description": "Third-party payment processor.", "docs": "stripe.com/docs" } },
-
-      { "id": "message-bus", "label": "Message Bus", "type": "broker", "parent": "grp-platform",
-        "position": { "x": 340, "y": 420 }, "tags": ["fulfillment", "notifications"],
-        "details": { "engine": "RabbitMQ", "description": "Async event backbone for order/inventory events." } },
-      { "id": "notifications-service", "label": "Notifications Service", "type": "service", "parent": "grp-platform",
-        "position": { "x": 580, "y": 420 }, "tags": ["notifications"],
-        "details": { "description": "Sends push/email notifications on domain events.", "repo": "github.com/org/notifications-service", "owner": "Platform" } },
-      { "id": "websocket-gateway", "label": "Websocket Gateway", "type": "gateway", "parent": "grp-platform",
-        "position": { "x": 820, "y": 460 }, "tags": ["notifications"],
-        "details": { "description": "Fans out real-time updates to connected clients.", "repo": "github.com/org/ws-gateway", "owner": "Platform" } },
-      { "id": "redis-cache", "label": "Redis Cache", "type": "cache", "parent": "grp-platform",
-        "position": { "x": 340, "y": 550 },
-        "details": { "engine": "Redis", "description": "Read-through cache for hot inventory lookups." } },
-      { "id": "file-storage", "label": "S3 Bucket", "type": "storage", "parent": "grp-platform",
-        "position": { "x": 580, "y": 550 }, "tags": ["fulfillment"],
-        "details": { "engine": "S3", "description": "Durable storage for generated documents." } }
-    ],
-    "edges": [
-      { "id": "e-web-gw",     "source": "web-app",             "target": "api-gateway",         "type": "rest",      "label": "HTTPS", "tags": ["checkout"],
-        "details": { "payload": "Standard REST/JSON requests", "auth": "Bearer JWT" } },
-      { "id": "e-mobile-gw", "source": "mobile-app",           "target": "api-gateway",          "type": "rest",      "label": "HTTPS", "tags": ["checkout"],
-        "details": { "payload": "Standard REST/JSON requests", "auth": "Bearer JWT" } },
-      { "id": "e-gw-orders", "source": "api-gateway",          "target": "orders-service",       "type": "rest",      "label": "/orders", "tags": ["checkout"],
-        "details": { "methods": "GET, POST", "payload": "OrderRequest / OrderResponse" } },
-      { "id": "e-gw-inv",    "source": "api-gateway",          "target": "inventory-service",    "type": "rest",      "label": "/inventory", "tags": ["fulfillment"],
-        "details": { "methods": "GET", "payload": "StockLevel[]" } },
-      { "id": "e-gw-pay",    "source": "api-gateway",          "target": "payments-service",     "type": "rest",      "label": "/payments", "tags": ["checkout"],
-        "details": { "methods": "POST", "payload": "PaymentRequest" } },
-      { "id": "e-gw-ws",     "source": "api-gateway",          "target": "websocket-gateway",    "type": "websocket", "label": "live status", "tags": ["notifications"],
-        "details": { "description": "Upgrades HTTP connection to WS for live order status updates." } },
-
-      { "id": "e-orders-db",     "source": "orders-service",     "target": "orders-db",        "type": "db", "label": "read/write", "tags": ["checkout", "fulfillment"],
-        "details": { "notes": "Direct SQL access via connection pool." } },
-      { "id": "e-inventory-db",  "source": "inventory-service",  "target": "inventory-db",     "type": "db", "label": "read/write", "tags": ["fulfillment"],
-        "details": { "notes": "Direct SQL access via connection pool." } },
-      { "id": "e-payments-db",   "source": "payments-service",   "target": "payments-db",      "type": "db", "label": "read/write", "tags": ["checkout"],
-        "details": { "notes": "Direct SQL access via connection pool." } },
-      { "id": "e-inventory-cache", "source": "inventory-service", "target": "redis-cache",     "type": "cache", "label": "read-through",
-        "details": { "ttl": "60s", "notes": "Falls back to inventory-db on cache miss." } },
-
-      { "id": "e-orders-bus",    "source": "orders-service",       "target": "message-bus",         "type": "rabbitmq", "label": "order.created", "tags": ["fulfillment"],
-        "details": { "payload": "OrderCreatedEvent { orderId, userId, total }", "delivery": "at-least-once" } },
-      { "id": "e-bus-inventory", "source": "message-bus",          "target": "inventory-service",   "type": "rabbitmq", "label": "order.created", "tags": ["fulfillment"],
-        "details": { "queue": "inventory.order-created", "notes": "Decrements reserved stock." } },
-      { "id": "e-bus-notify",    "source": "message-bus",          "target": "notifications-service","type": "rabbitmq", "label": "order.created", "tags": ["notifications"],
-        "details": { "queue": "notifications.order-created", "notes": "Triggers order-confirmation email." } },
-
-      { "id": "e-pay-stripe", "source": "payments-service", "target": "payment-processor", "type": "rest", "label": "charge", "tags": ["checkout"],
-        "details": { "payload": "ChargeRequest { amount, currency, source }", "notes": "Synchronous call, retried with backoff on 5xx." } },
-      { "id": "e-notify-ws",  "source": "notifications-service", "target": "websocket-gateway", "type": "websocket", "label": "push", "tags": ["notifications"],
-        "details": { "description": "Pushes in-app notification payloads to the gateway for fan-out." } },
-      { "id": "e-orders-invoice", "source": "orders-service", "target": "file-storage", "type": "file-io", "label": "invoice PDF", "tags": ["fulfillment"],
-        "details": { "format": "PDF", "notes": "Written once per completed order; referenced by URL from Orders DB." } }
-    ]
-  }
-  </script>
-
   <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.34.2/dist/cytoscape.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/cytoscape-expand-collapse@4.1.1/cytoscape-expand-collapse.min.js"></script>
 
@@ -449,8 +418,231 @@
   (function () {
     'use strict';
 
-    // ---------- load data ----------
-    var graph = JSON.parse(document.getElementById('graph-data').textContent);
+    // Bump when the tool starts relying on a data field it cannot default.
+    var TOOL_SCHEMA = 1;
+
+    // Problems found while reading a dataset. Collected rather than thrown:
+    // one bad reference should cost you one flow, not the whole diagram.
+    var warnings = [];
+    function warn(msg) { warnings.push(msg); }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    // ---------- validate a dataset into cytoscape elements ----------
+    function buildElements(graph) {
+      var nodeTypes = graph.nodeTypes || {};
+      var edgeTypes = graph.edgeTypes || {};
+
+      var knownNode = Object.create(null);
+      var keptNodes = [];
+      (graph.nodes || []).forEach(function (n, i) {
+        if (!n || !n.id) { warn('Service #' + (i + 1) + ' has no "id" — skipped.'); return; }
+        if (knownNode[n.id]) { warn('Duplicate service id "' + n.id + '" — kept the first, skipped the rest.'); return; }
+        knownNode[n.id] = true;
+        keptNodes.push(n);
+      });
+
+      var isGroup = Object.create(null);
+      keptNodes.forEach(function (n) { if (n.parent) isGroup[n.parent] = true; });
+
+      var elements = [];
+      var reportedNodeType = Object.create(null);
+      var leaves = 0, positioned = 0;
+
+      keptNodes.forEach(function (n) {
+        var parent = n.parent;
+        if (parent && !knownNode[parent]) {
+          warn('Service "' + n.id + '" is in unknown group "' + parent + '" — showing it ungrouped.');
+          parent = undefined;
+        }
+        if (n.type && !nodeTypes[n.type] && !reportedNodeType[n.type]) {
+          reportedNodeType[n.type] = true;
+          warn('Service type "' + n.type + '" is not defined in "nodeTypes" — those render grey.');
+        }
+        if (!isGroup[n.id]) { leaves++; if (n.position) positioned++; }
+
+        var el = { data: { id: n.id, label: n.label || n.id, type: n.type, parent: parent, tags: n.tags || [], details: n.details } };
+        if (n.position) el.position = { x: n.position.x, y: n.position.y };
+        elements.push(el);
+      });
+
+      var knownEdge = Object.create(null);
+      var reportedEdgeType = Object.create(null);
+      (graph.edges || []).forEach(function (e, i) {
+        var name = (e && (e.label || e.id)) || ('#' + (i + 1));
+        if (!e || !e.id) { warn('Flow ' + name + ' has no "id" — skipped.'); return; }
+        if (knownEdge[e.id]) { warn('Duplicate flow id "' + e.id + '" — kept the first, skipped the rest.'); return; }
+        if (!knownNode[e.source]) { warn('Flow "' + name + '" starts at unknown service "' + e.source + '" — flow skipped.'); return; }
+        if (!knownNode[e.target]) { warn('Flow "' + name + '" ends at unknown service "' + e.target + '" — flow skipped.'); return; }
+        if (e.type && !edgeTypes[e.type] && !reportedEdgeType[e.type]) {
+          reportedEdgeType[e.type] = true;
+          warn('Flow type "' + e.type + '" is not defined in "edgeTypes" — those render grey.');
+        }
+        knownEdge[e.id] = true;
+        elements.push({ data: { id: e.id, source: e.source, target: e.target, type: e.type, label: e.label, tags: e.tags || [], details: e.details } });
+      });
+
+      if (!keptNodes.length) warn('This dataset has no services in it yet.');
+      if (graph.schema && graph.schema > TOOL_SCHEMA) {
+        warn('This dataset was written for a newer version of the tool (schema ' + graph.schema +
+             ', this tool understands ' + TOOL_SCHEMA + '). Pull the latest index.html.');
+      }
+
+      // Only honour authored positions if every leaf node has one; a partial
+      // set would silently stack the rest on top of each other at the origin.
+      return { elements: elements, usePreset: leaves > 0 && positioned === leaves };
+    }
+
+    function renderWarnings() {
+      if (!warnings.length) return;
+      var banner = document.getElementById('warning-banner');
+      banner.innerHTML =
+        '<div class="grow"><strong>' + warnings.length +
+        (warnings.length === 1 ? ' problem' : ' problems') + ' in this dataset.</strong> ' +
+        '<button type="button" class="toggle">Show details</button>' +
+        '<ul hidden>' + warnings.map(function (w) { return '<li>' + escapeHtml(w) + '</li>'; }).join('') + '</ul></div>' +
+        '<button type="button" class="close" title="Dismiss">&times;</button>';
+      var list = banner.querySelector('ul');
+      var toggle = banner.querySelector('.toggle');
+      toggle.addEventListener('click', function () {
+        list.hidden = !list.hidden;
+        toggle.textContent = list.hidden ? 'Show details' : 'Hide details';
+      });
+      banner.querySelector('.close').addEventListener('click', function () { banner.hidden = true; });
+      banner.hidden = false;
+    }
+
+    // ---------- setup screen (shown instead of the diagram when there is no usable data) ----------
+    function lastErrorText() {
+      var errs = window.__dataflowErrors || [];
+      if (!errs.length) return '';
+      var e = errs[errs.length - 1];
+      var txt = e.msg || 'JavaScript error';
+      if (e.url && e.line) txt += ' (' + String(e.url).split('/').pop() + ':' + e.line + ')';
+      return txt;
+    }
+
+    function showSetup(broken) {
+      var html;
+      if (broken) {
+        var detail = lastErrorText();
+        html = '<h2>Couldn’t read data/local.js</h2>' +
+          '<p>The file is there, but it didn’t register a dataset. That is almost always a syntax ' +
+          'error &mdash; a missing comma, brace, or quote.</p>' +
+          (detail ? '<div class="err">' + escapeHtml(detail) + '</div>' : '') +
+          '<p>Browsers hide the details of errors in local files, so open the console for the exact ' +
+          'line: <strong>⌥⌘J</strong> in Chrome, <strong>⌥⌘K</strong> in Firefox.</p>' +
+          '<p>Also check that the file calls <code>dataflow({ … })</code> at least once.</p>';
+      } else {
+        html = '<h2>No dataset found</h2>' +
+          '<p>Copy the example to start your own diagram:</p>' +
+          '<pre>cp data/example.js data/local.js</pre>' +
+          '<p>Then edit <code>data/local.js</code> and reload this page. That file is gitignored, so it ' +
+          'survives every <code>git pull</code> and is never committed to this repo.</p>' +
+          '<p>See <code>data/README.md</code> for the field reference.</p>';
+      }
+      var screen = document.getElementById('setup-screen');
+      screen.innerHTML = '<div class="setup-card">' + html + '</div>';
+      screen.hidden = false;
+      document.getElementById('legend').style.display = 'none';
+      document.getElementById('tag-filter').style.display = 'none';
+    }
+
+    // ---------- dataset loading ----------
+    // Classic script tags are not subject to CORS, so this works from file://
+    // where fetch() of a sibling file does not. A missing file fires onerror
+    // with no window error; a file with a syntax error fires onload *and* a
+    // window error. That is how the two are told apart below.
+    function loadScript(src, cb) {
+      var errorsBefore = (window.__dataflowErrors || []).length;
+      var s = document.createElement('script');
+      s.src = src;
+      function done(found) {
+        setTimeout(function () {
+          cb(found, (window.__dataflowErrors || []).length > errorsBefore);
+        }, 0);
+      }
+      s.onload = function () { done(true); };
+      s.onerror = function () { done(false); };
+      document.head.appendChild(s);
+    }
+
+    function pickDataset(list) {
+      var want = null;
+      try { want = new URL(window.location.href).searchParams.get('dataset'); } catch (e) { /* ignore */ }
+      if (!want) { try { want = localStorage.getItem('dataflow.dataset'); } catch (e) { /* ignore */ } }
+      for (var i = 0; i < list.length; i++) { if (list[i].id === want) return list[i]; }
+      return list[0];
+    }
+
+    function buildDatasetPicker(list, current) {
+      if (list.length < 2) return;
+      var sel = document.getElementById('dataset-picker');
+      sel.innerHTML = list.map(function (d) {
+        return '<option value="' + escapeHtml(d.id) + '"' + (d.id === current.id ? ' selected' : '') +
+          '>' + escapeHtml(d.label) + '</option>';
+      }).join('');
+      sel.hidden = false;
+      // Full reload rather than an in-place swap: startup binds listeners to
+      // the legend, tag menu and toolbar, and rebinding them per switch is a
+      // double-binding bug waiting to happen. A local reload is instant.
+      sel.addEventListener('change', function () {
+        try { localStorage.setItem('dataflow.dataset', sel.value); } catch (e) { /* ignore */ }
+        var u = new URL(window.location.href);
+        u.searchParams.set('dataset', sel.value);
+        window.location.href = u.toString();
+      });
+    }
+
+    function start() {
+      var registered = (window.__dataflowDatasets || []).filter(function (d) {
+        return d && typeof d === 'object';
+      });
+
+      var byId = Object.create(null);
+      var order = [];
+      registered.forEach(function (d, i) {
+        if (!d.id) d.id = 'dataset-' + (i + 1);
+        if (!d.label) d.label = d.id;
+        if (byId[d.id]) warn('Two datasets share the id "' + d.id + '" — the last one wins.');
+        else order.push(d.id);
+        byId[d.id] = d;
+      });
+      var list = order.map(function (id) { return byId[id]; });
+
+      var chosen = pickDataset(list);
+      try { localStorage.setItem('dataflow.dataset', chosen.id); } catch (e) { /* ignore */ }
+      document.getElementById('diagram-title').textContent = chosen.label;
+      document.title = chosen.label + ' — Dataflow';
+      buildDatasetPicker(list, chosen);
+
+      initDiagram(chosen);
+      renderWarnings();
+    }
+
+    function boot() {
+      var before = window.__dataflowDatasets.length;
+      loadScript('data/local.js', function (found, errored) {
+        if (window.__dataflowDatasets.length > before) return start();
+        // The file exists (or blew up) but gave us nothing. Do NOT quietly
+        // fall through to the demo — that would look like your edits vanished.
+        if (found || errored) return showSetup(true);
+        loadScript('data/example.js', function (found2, errored2) {
+          if (window.__dataflowDatasets.length) return start();
+          showSetup(found2 || errored2);
+        });
+      });
+    }
+
+    // ---------- the diagram itself ----------
+    function initDiagram(graph) {
+    (function () {
+    'use strict';
+
     var nodeTypes = graph.nodeTypes || {};
     var edgeTypes = graph.edgeTypes || {};
     var allTags = graph.tags || [];
@@ -461,11 +653,6 @@
     var selectedTags = new Set();
 
     // ---------- helpers ----------
-    function escapeHtml(str) {
-      return String(str).replace(/[&<>"']/g, function (c) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-      });
-    }
     function prettyKey(key) {
       return String(key).replace(/[-_]/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
     }
@@ -483,16 +670,9 @@
       }).join(' ') + '</div>';
     }
 
-    // ---------- build cytoscape elements from data ----------
-    var elements = [];
-    (graph.nodes || []).forEach(function (n) {
-      var el = { data: { id: n.id, label: n.label, type: n.type, parent: n.parent, tags: n.tags || [], details: n.details } };
-      if (n.position) el.position = n.position;
-      elements.push(el);
-    });
-    (graph.edges || []).forEach(function (e) {
-      elements.push({ data: { id: e.id, source: e.source, target: e.target, type: e.type, label: e.label, tags: e.tags || [], details: e.details } });
-    });
+    // ---------- build cytoscape elements from data (validated; see buildElements) ----------
+    var built = buildElements(graph);
+    var elements = built.elements;
 
     // ---------- build stylesheet from nodeTypes / edgeTypes ----------
     function buildStylesheet() {
@@ -570,7 +750,10 @@
       container: document.getElementById('cy'),
       elements: elements,
       style: buildStylesheet(),
-      layout: { name: 'preset' },
+      layout: built.usePreset ? { name: 'preset' } : {
+        name: 'cose', animate: false, fit: true, padding: 40,
+        nodeRepulsion: 12000, idealEdgeLength: 120, nestingFactor: 1.2
+      },
       wheelSensitivity: 0.25,
       minZoom: 0.1,
       maxZoom: 4
@@ -582,6 +765,12 @@
       animate: true,
       undoable: false
     });
+
+    if (!built.usePreset) {
+      setTimeout(function () {
+        flashToast('No saved layout — arranged automatically. Drag things, then use “Copy data file”.', 5000);
+      }, 400);
+    }
 
     // ---------- detail panel ----------
     var panel = document.getElementById('detail-panel');
@@ -784,35 +973,76 @@
       });
     });
 
-    // ---------- copy layout as JSON ----------
-    function flashToast(msg) {
+    // ---------- copying positions / the whole data file back out ----------
+    function flashToast(msg, ms) {
       var toast = document.getElementById('toast');
       toast.textContent = msg;
       toast.classList.add('show');
-      setTimeout(function () { toast.classList.remove('show'); }, 1800);
+      setTimeout(function () { toast.classList.remove('show'); }, ms || 1800);
     }
-    document.getElementById('copy-layout').addEventListener('click', function () {
-      var positions = cy.nodes(':childless').map(function (n) {
-        return { id: n.id(), position: { x: Math.round(n.position('x')), y: Math.round(n.position('y')) } };
-      });
-      var json = JSON.stringify(positions, null, 2);
+    function copyOut(text, okMsg, fallbackTitle) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(json).then(function () {
-          flashToast('Layout copied to clipboard');
-        }).catch(function () { showLayoutFallback(json); });
+        navigator.clipboard.writeText(text)
+          .then(function () { flashToast(okMsg); })
+          .catch(function () { showCopyFallback(text, fallbackTitle); });
       } else {
-        showLayoutFallback(json);
+        showCopyFallback(text, fallbackTitle);
       }
-    });
-    function showLayoutFallback(json) {
-      panelContent.innerHTML = '<h2>Layout JSON</h2><div class="meta-line">Clipboard access was blocked — select all and copy manually.</div>' +
+    }
+    function showCopyFallback(text, title) {
+      panelContent.innerHTML = '<h2>' + escapeHtml(title) + '</h2>' +
+        '<div class="meta-line">Clipboard access was blocked — select all and copy manually.</div>' +
         '<textarea id="layout-fallback" readonly></textarea>';
-      document.getElementById('layout-fallback').value = json;
+      document.getElementById('layout-fallback').value = text;
       openPanel();
     }
 
+    function currentPositions() {
+      return cy.nodes(':childless').map(function (n) {
+        return { id: n.id(), position: { x: Math.round(n.position('x')), y: Math.round(n.position('y')) } };
+      });
+    }
+
+    // Regenerates the whole file from the in-memory dataset. This is why the
+    // positions-only button above still exists: anything not part of the data
+    // — comments especially — is not round-tripped and would be lost if you
+    // pasted this over a data file you had annotated.
+    function currentDataFile() {
+      var out = { id: graph.id, label: graph.label };
+      if (graph.schema) out.schema = graph.schema;
+      out.nodeTypes = graph.nodeTypes || {};
+      out.edgeTypes = graph.edgeTypes || {};
+      if (graph.tags) out.tags = graph.tags;
+      out.nodes = (graph.nodes || []).map(function (n) {
+        var copy = {};
+        Object.keys(n).forEach(function (k) { copy[k] = n[k]; });
+        var el = cy.getElementById(n.id);
+        // Children of a collapsed group are not in the graph right now, so
+        // their authored position is kept rather than overwritten.
+        if (el && el.length && el.isNode() && el.isChildless()) {
+          copy.position = { x: Math.round(el.position('x')), y: Math.round(el.position('y')) };
+        }
+        return copy;
+      });
+      out.edges = graph.edges || [];
+      return 'dataflow(' + JSON.stringify(out, null, 2) + ');\n';
+    }
+
+    document.getElementById('copy-layout').addEventListener('click', function () {
+      copyOut(JSON.stringify(currentPositions(), null, 2),
+        'Positions copied to clipboard', 'Layout JSON');
+    });
+    document.getElementById('copy-data').addEventListener('click', function () {
+      copyOut(currentDataFile(),
+        'Data file copied — paste over data/local.js', 'Data file');
+    });
+
     // ---------- keep canvas sized on window resize ----------
     window.addEventListener('resize', function () { cy.resize(); });
+    })();
+    }
+
+    boot();
   })();
   </script>
 
