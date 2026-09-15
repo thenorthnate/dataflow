@@ -74,17 +74,18 @@
   }
   #tag-filter { flex: none; }
 
-  #tag-filter { position: relative; }
+  /* The toolbar is a fixed 52px tall and clips its overflow (so buttons don't
+     spill on narrow windows), and its z-index makes it a stacking context. A
+     dropdown parented inside it would therefore be both cut off at 52px and
+     painted under the detail panel. So this menu is moved to <body> at startup
+     and positioned from the button's rect instead. */
   #tag-filter-menu {
-    position: absolute;
-    top: 36px;
-    left: 0;
+    position: fixed;
     background: var(--panel-bg);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 8px 10px;
     min-width: 180px;
-    max-height: 320px;
     overflow-y: auto;
     box-shadow: 0 4px 16px rgba(0,0,0,0.14);
     z-index: 30;
@@ -923,6 +924,9 @@
 
       if (!allTags.length) { wrap.style.display = 'none'; return; }
 
+      // Escape the toolbar's clipping and stacking context (see the CSS note).
+      document.body.appendChild(menu);
+
       menu.innerHTML = allTags.map(function (tag) {
         return '<label class="legend-row"><input type="checkbox" data-tag="' + escapeHtml(tag) +
           '" />' + escapeHtml(prettyKey(tag)) + '</label>';
@@ -941,15 +945,29 @@
         }
       });
 
+      // Anchor the menu under its button, kept within the viewport on both
+      // axes so it stays usable in a short or narrow window.
+      function positionMenu() {
+        var r = btn.getBoundingClientRect();
+        menu.style.top = (r.bottom + 6) + 'px';
+        menu.style.maxHeight = Math.max(120, Math.min(320, window.innerHeight - r.bottom - 22)) + 'px';
+        var left = Math.min(r.left, window.innerWidth - menu.offsetWidth - 8);
+        menu.style.left = Math.max(8, left) + 'px';
+      }
+
       btn.addEventListener('click', function (evt) {
         evt.stopPropagation();
         menu.hidden = !menu.hidden;
+        if (!menu.hidden) positionMenu();
       });
       document.addEventListener('click', function (evt) {
-        if (!wrap.contains(evt.target)) menu.hidden = true;
+        if (!wrap.contains(evt.target) && !menu.contains(evt.target)) menu.hidden = true;
       });
       document.addEventListener('keydown', function (evt) {
         if (evt.key === 'Escape') menu.hidden = true;
+      });
+      window.addEventListener('resize', function () {
+        if (!menu.hidden) positionMenu();
       });
     }
     buildTagFilter();
