@@ -422,6 +422,19 @@
     // Bump when the tool starts relying on a data field it cannot default.
     var TOOL_SCHEMA = 1;
 
+    // Node shapes a nodeTypes entry may ask for. Anything else falls back to
+    // "ellipse" with a warning, rather than reaching Cytoscape — which ignores
+    // an unknown shape silently and logs to a console nobody has open.
+    // "polygon" is deliberately absent: it needs a companion
+    // shape-polygon-points property, i.e. a second field, for a case nobody
+    // has asked for.
+    var NODE_SHAPES = Object.create(null);
+    ('ellipse triangle round-triangle rectangle round-rectangle ' +
+     'bottom-round-rectangle cut-rectangle barrel rhomboid right-rhomboid ' +
+     'diamond round-diamond pentagon round-pentagon hexagon round-hexagon ' +
+     'concave-hexagon heptagon round-heptagon octagon round-octagon star tag ' +
+     'round-tag vee').split(' ').forEach(function (s) { NODE_SHAPES[s] = true; });
+
     // Problems found while reading a dataset. Collected rather than thrown:
     // one bad reference should cost you one flow, not the whole diagram.
     var warnings = [];
@@ -437,6 +450,14 @@
     function buildElements(graph) {
       var nodeTypes = graph.nodeTypes || {};
       var edgeTypes = graph.edgeTypes || {};
+
+      Object.keys(nodeTypes).forEach(function (type) {
+        var shape = nodeTypes[type].shape;
+        if (shape && !NODE_SHAPES[shape]) {
+          warn('Service type "' + type + '" asks for shape "' + shape +
+               '", which is not a shape the tool knows — drawing it as an ellipse.');
+        }
+      });
 
       var knownNode = Object.create(null);
       var keptNodes = [];
@@ -768,8 +789,18 @@
       ];
 
       Object.keys(nodeTypes).forEach(function (type) {
+        var cfg = nodeTypes[type];
+        // Identity, always applied — same reasoning as an edge's line-style
+        // below: a database is barrel-shaped whether or not you are pointing
+        // at it, and the dim diagram keeps more of its structure readable if
+        // shapes survive the grey. Behind .lit this would instead make every
+        // node an ellipse at rest and visibly change outline as it lit up.
+        style.push({ selector: 'node[type = "' + type + '"]', style: {
+          'shape': NODE_SHAPES[cfg.shape] ? cfg.shape : 'ellipse'
+        } });
+        // Colour, only when lit.
         style.push({ selector: 'node.lit[type = "' + type + '"]', style: {
-          'background-color': nodeTypes[type].color
+          'background-color': cfg.color
         } });
       });
       Object.keys(edgeTypes).forEach(function (type) {
@@ -789,6 +820,16 @@
           'width': cfg.width || 2
         } });
       });
+
+      // A group box is a container, not an instance of its type. Groups
+      // conventionally carry no "type" at all, but one that does would
+      // otherwise pick up that type's shape from the rules just generated
+      // (declaration order, not specificity) and stop reading as a container.
+      // Collapsing a group makes it childless, so it stops matching :parent —
+      // hence the extension's collapsed-node class alongside it.
+      style.push({ selector: 'node:parent, node.cy-expand-collapse-collapsed-node', style: {
+        'shape': 'roundrectangle'
+      } });
 
       // A group is chrome rather than a typed element, so lighting one firms up
       // its outline instead of flooding it with the fallback fill. Groups are

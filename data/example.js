@@ -20,14 +20,16 @@ dataflow({
   "label": "Example — E-commerce",
   "schema": 1,
 
+  // "shape" is optional and defaults to "ellipse" — most types below simply
+  // leave it out. See data/README.md for the list of shapes.
   "nodeTypes": {
     "gateway":  { "color": "#2F5FD9" },
     "service":  { "color": "#4C82F7" },
-    "broker":   { "color": "#E0A800" },
-    "database": { "color": "#F79B4C" },
+    "broker":   { "color": "#E0A800", "shape": "tag" },
+    "database": { "color": "#F79B4C", "shape": "barrel" },
     "cache":    { "color": "#F76E8E" },
     "storage":  { "color": "#4CAF50" },
-    "external": { "color": "#9AA0A6" }
+    "external": { "color": "#9AA0A6", "shape": "cut-rectangle" }
   },
 
   "edgeTypes": {

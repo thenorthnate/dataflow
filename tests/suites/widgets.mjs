@@ -68,6 +68,21 @@ export async function run(page, t) {
   await page.eval(`document.getElementById('tag-filter-btn').click()`);
   await page.sleep(150);
 
+  t.section('node shape per type');
+  // Shape is identity, not loudness (DESIGN.md §6): it is applied outside .lit
+  // so the dim diagram keeps its structure, rather than every node being an
+  // ellipse at rest and changing outline the instant it lights up.
+  await page.park();
+  t.eq('a shaped type is shaped while dim', await page.eval(`st('orders-db', 'shape')`), 'barrel');
+  await page.hover('orders-db');
+  t.eq('...and still shaped while lit', await page.eval(`st('orders-db', 'shape')`), 'barrel');
+  t.eq('...which is the state that actually lights it',
+    await page.eval(`__cy.getElementById('orders-db').hasClass('lit')`), true);
+  await page.park();
+  t.eq('a second shaped type gets its own', await page.eval(`st('message-bus', 'shape')`), 'tag');
+  t.eq('a type with no shape defaults to an ellipse', await page.eval(`st('web-app', 'shape')`), 'ellipse');
+  t.eq('a group box stays a container', await page.eval(`st('grp-commerce', 'shape')`), 'roundrectangle');
+
   t.section('collapse and expand groups');
   await page.hover('orders-service');
   await page.eval(`document.getElementById('collapse-all').click()`);
@@ -85,9 +100,11 @@ export async function run(page, t) {
   await page.unselectAll();
   await page.select('#grp-commerce');
   t.ok('a collapsed group lights its own flows', (await page.lit()).length > 1);
-  // A collapsed group stops matching :parent — it is a type-less ellipse — so
-  // the fallback colour is exactly what should light it.
+  // A collapsed group stops matching :parent and carries no type, so the
+  // fallback colour is exactly what should light it. Its shape is held by the
+  // collapsed-node class instead, or it would snap to something else mid-click.
   t.eq('a collapsed group lights via the fallback', await page.eval(`hex(st('grp-commerce', 'background-color'))`), FALLBACK);
+  t.eq('and still looks like a container', await page.eval(`st('grp-commerce', 'shape')`), 'roundrectangle');
   await page.unselectAll();
   await page.eval(`document.getElementById('expand-all').click()`);
   await page.sleep(900);
