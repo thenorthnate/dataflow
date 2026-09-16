@@ -78,5 +78,4 @@ the two never see each other, and no submodule machinery is involved.
 | `data/example.js` | Demo dataset, and the template you copy. |
 | `data/local.js` | Your data. Gitignored; created by you. |
 | `data/README.md` | Dataset field reference. |
-| `PLAN.md` | Original design notes — library choice, interaction model. |
-| `PLAN-DATA.md` | Design notes for the tool/data split. |
+| `DESIGN.md` | How the tool is built and why — the design reference. |

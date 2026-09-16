@@ -1,14 +1,11 @@
 # Dataflow Diagram — Design
 
-This document describes how the project is built and why. It is the merged,
-present-tense successor to `PLAN.md` (the original build plan) and
-`PLAN-DATA.md` (the plan for splitting data out of the tool) — both of which
-described work that has since been done.
+This document describes how the project is built and why — the single place to
+look for "how does this thing work, and why is it like that."
 
-**Keeping it current:** new work still starts as a `PLAN.md`-style document,
-but once the work ships, its decisions get folded into this file and the plan
-is discarded. This is the single place to look for "how does this thing work,
-and why is it like that."
+**Keeping it current:** substantial new work starts as its own plan document,
+but once that work ships, its decisions get folded in here and the plan is
+discarded. Nothing about the design should live anywhere else.
 
 Two companion docs cover narrower ground and stay authoritative for it:
 
