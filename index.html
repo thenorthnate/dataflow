@@ -675,7 +675,24 @@
     var built = buildElements(graph);
     var elements = built.elements;
 
+    // ---------- dim-by-default palette ----------
+    // The diagram rests in grey and only lights up around whatever you point
+    // at, so colour reads as "this is what I'm looking at" rather than as
+    // permanent decoration. DIM_NODE has to sit clearly lighter than any
+    // colour a dataset might configure — note that the example dataset's
+    // "external" node type is itself grey (#9AA0A6), so too dark a dim state
+    // would make a lit external node look like it had failed to light.
+    var DIM_NODE = '#d3d7de';
+    var DIM_LINE = '#ced3db';
+    var DIM_LABEL = '#a0a6b1';
+    var LIT_LABEL = '#222';
+    var DIM_EDGE_WIDTH = 1;
+    var LIT_FALLBACK = '#6b7280';
+
     // ---------- build stylesheet from nodeTypes / edgeTypes ----------
+    // Cytoscape resolves conflicts by declaration order, not CSS specificity:
+    // the last block to set a property wins. So this is assembled dim first,
+    // then the generated colour rules gated behind .lit, then :selected last.
     function buildStylesheet() {
       var style = [
         { selector: 'node', style: {
@@ -683,12 +700,12 @@
             'text-valign': 'bottom',
             'text-margin-y': 6,
             'font-size': 11,
-            'color': '#222',
+            'color': DIM_LABEL,
             'text-wrap': 'wrap',
             'text-max-width': 90,
             'width': 56,
             'height': 56,
-            'background-color': '#888',
+            'background-color': DIM_NODE,
             'shape': 'ellipse',
             'border-width': 2,
             'border-color': '#fff'
@@ -716,33 +733,85 @@
             'font-size': 9,
             'color': '#444',
             'text-background-color': '#fff',
-            'text-background-opacity': 0.85,
+            // Edge label text is the single biggest contributor to a busy
+            // diagram, so it is switched off until the edge lights up. Both
+            // properties are needed: the white box behind the text is a
+            // separate property from the text itself, and leaving it on would
+            // scatter blank chips across the canvas.
+            'text-opacity': 0,
+            'text-background-opacity': 0,
             'text-background-padding': 2,
             'target-arrow-shape': 'triangle',
-            'width': 2,
-            'line-color': '#999',
-            'target-arrow-color': '#999'
+            'width': DIM_EDGE_WIDTH,
+            'line-color': DIM_LINE,
+            'target-arrow-color': DIM_LINE
         } },
-        { selector: '.hidden', style: { 'display': 'none' } },
-        { selector: '.faded', style: { 'opacity': 0.12 } },
-        { selector: '.highlighted', style: { 'opacity': 1 } },
-        { selector: 'node:selected', style: { 'border-color': '#222', 'border-width': 3 } },
-        { selector: 'edge:selected', style: { 'width': 4 } }
+
+        // Generic lit rules, before the per-type ones so a real type overrides
+        // the fallback colour. They are also the only thing that lets an
+        // element the type dictionary doesn't cover light up at all — a missing
+        // or misspelled "type" still renders (with a warning, see §9), and a
+        // collapsed group can merge several flows into one meta-edge that
+        // carries no type of its own. Without these, such an element would have
+        // no colour rule to match and could never leave the dim state.
+        { selector: 'node.lit', style: {
+            'background-color': LIT_FALLBACK,
+            'color': LIT_LABEL
+        } },
+        { selector: 'edge.lit', style: {
+            'line-color': LIT_FALLBACK,
+            'target-arrow-color': LIT_FALLBACK,
+            'width': 2,
+            'text-opacity': 1,
+            'text-background-opacity': 0.85
+        } }
       ];
 
       Object.keys(nodeTypes).forEach(function (type) {
-        style.push({ selector: 'node[type = "' + type + '"]', style: { 'background-color': nodeTypes[type].color } });
+        style.push({ selector: 'node.lit[type = "' + type + '"]', style: {
+          'background-color': nodeTypes[type].color
+        } });
       });
       Object.keys(edgeTypes).forEach(function (type) {
         var cfg = edgeTypes[type];
+        // Identity, always applied: a dashed line is dashed whether or not you
+        // are looking at it. Keeping the arrowhead here matters — an edge type
+        // with arrow: "none" would otherwise inherit the base triangle while
+        // dim and then visibly lose it at the moment it lit up.
         style.push({ selector: 'edge[type = "' + type + '"]', style: {
-          'line-color': cfg.color,
-          'target-arrow-color': cfg.color,
           'line-style': cfg.lineStyle || 'solid',
-          'width': cfg.width || 2,
           'target-arrow-shape': cfg.arrow || 'triangle'
         } });
+        // Colour and weight, only when lit.
+        style.push({ selector: 'edge.lit[type = "' + type + '"]', style: {
+          'line-color': cfg.color,
+          'target-arrow-color': cfg.color,
+          'width': cfg.width || 2
+        } });
       });
+
+      // A group is chrome rather than a typed element, so lighting one firms up
+      // its outline instead of flooding it with the fallback fill. Groups are
+      // never lit as a neighbour (see applyFocus), but one can still be clicked.
+      style.push({ selector: 'node:parent.lit', style: {
+        'background-color': '#eef1f8',
+        'border-color': '#9aa2b5',
+        'color': '#5a6178'
+      } });
+
+      // Last, so they win over everything generated above. They previously sat
+      // above the type rules, which quietly meant edge:selected's width never
+      // actually took effect. Now that it does, it has to be a floor rather
+      // than a flat 4 — an edge type configured thicker than that must not get
+      // *thinner* at the moment you click it.
+      style.push({ selector: '.hidden', style: { 'display': 'none' } });
+      style.push({ selector: '.faded', style: { 'opacity': 0.12 } });
+      style.push({ selector: '.highlighted', style: { 'opacity': 1 } });
+      style.push({ selector: 'node:selected', style: { 'border-color': '#222', 'border-width': 3 } });
+      style.push({ selector: 'edge:selected', style: { 'width': function (ele) {
+        var cfg = edgeTypes[ele.data('type')];
+        return Math.max(4, (cfg && cfg.width) || 2);
+      } } });
       return style;
     }
 
@@ -765,6 +834,95 @@
       fisheye: false,
       animate: true,
       undoable: false
+    });
+
+    // ---------- focus lighting: dim by default, colour what you point at ----------
+    // Three independent inputs decide what is lit — selection, hover, and
+    // search — so they get the same treatment as the two filters do in
+    // recomputeVisibility(): computed together, applied as one class toggle in
+    // one batch. Computed separately, each would clear the others' classes.
+    var hoverEle = null;
+    var searchMatches = null;
+    var focusQueued = false;
+
+    function isHovered(ele) { return !!hoverEle && hoverEle.same(ele); }
+
+    function focusSeeds() {
+      var seeds = cy.$(':selected');
+      if (hoverEle && hoverEle.inside()) seeds = seeds.union(hoverEle);
+      if (searchMatches) seeds = seeds.union(searchMatches);
+      return seeds;
+    }
+
+    // The walk runs over the *visible* subgraph, not the whole graph. Classes
+    // don't change topology, so without this a node reachable only across an
+    // edge the legend has hidden would still light up — a coloured circle with
+    // nothing visibly connecting it to what you clicked.
+    //
+    // The two seed kinds need two different expansions. Node seeds take their
+    // incident edges and the node at the far end of each. Edge seeds take their
+    // two endpoints, and that term has to be written out: connectedEdges() and
+    // neighborhood() both iterate only the *nodes* of a collection and drop
+    // edges on the floor, so leaning on neighborhood() alone would light the
+    // line you clicked and leave both of its ends grey.
+    //
+    // Neither term includes compound parents, which is why a group box stays
+    // dim when the services inside it light up.
+    function applyFocus() {
+      focusQueued = false;
+      var visible = cy.elements().difference(cy.$('.hidden'));
+      var seeds = focusSeeds().intersection(visible);
+      var spokes = seeds.connectedEdges().intersection(visible);
+      var lit = seeds
+        .union(spokes)
+        .union(spokes.connectedNodes())
+        .union(seeds.edges().connectedNodes())
+        .intersection(visible);
+      cy.batch(function () {
+        cy.elements().not(lit).removeClass('lit');
+        lit.addClass('lit');
+      });
+    }
+
+    // inspect() unselects everything before selecting one element, which fires
+    // an event per previously-selected element, and hover events arrive at
+    // pointer rate. One recompute per frame instead of one per event.
+    function scheduleFocus() {
+      if (focusQueued) return;
+      focusQueued = true;
+      requestAnimationFrame(applyFocus);
+    }
+
+    function clearHover() {
+      if (!hoverEle) return;
+      hoverEle = null;
+      scheduleFocus();
+    }
+
+    // Driving off select/unselect rather than from inside inspect() means the
+    // panel's own node-to-flow navigation, closePanel(), and Escape all light
+    // correctly without each having to remember to.
+    cy.on('select unselect', scheduleFocus);
+
+    cy.on('mouseover', 'node, edge', function (evt) {
+      if (isHovered(evt.target)) return;
+      hoverEle = evt.target;
+      scheduleFocus();
+    });
+    cy.on('mouseout', 'node, edge', function (evt) {
+      if (isHovered(evt.target)) clearHover();
+    });
+    // mouseout doesn't reliably fire when the cursor leaves the canvas quickly,
+    // or leaves it into the toolbar or the detail panel.
+    document.getElementById('cy').addEventListener('mouseleave', clearHover);
+    // Expanding and collapsing groups rewrites the graph under a cursor that
+    // hasn't moved, so neither a mouseout nor a select fires and the lit set
+    // would otherwise be left describing a graph that no longer exists:
+    // collapsing takes the hovered element away, and expanding puts back edges
+    // that the set was computed without. Recompute on any topology change.
+    cy.on('add remove', function (evt) {
+      if (isHovered(evt.target)) hoverEle = null;
+      scheduleFocus();
     });
 
     if (!built.usePreset) {
@@ -889,6 +1047,7 @@
           e.toggleClass('hidden', typeHidden || tagHidden || endpointHidden);
         });
       });
+      scheduleFocus();
     }
 
     // ---------- legend (built from nodeTypes / edgeTypes, drives type filtering) ----------
@@ -976,19 +1135,29 @@
     var searchBox = document.getElementById('search-box');
     searchBox.addEventListener('input', function () {
       var q = searchBox.value.trim().toLowerCase();
+      var matches = q ? cy.nodes().filter(function (n) {
+        return (n.data('label') || '').toLowerCase().indexOf(q) !== -1;
+      }) : null;
+      if (matches && matches.length === 0) matches = null;
+
+      // Search seeds the focus lighting as well as the fade. Without this its
+      // matches would stay grey, and a search result would end up *less*
+      // prominent than it was before the diagram went dim by default.
+      searchMatches = matches;
+
       cy.batch(function () {
         cy.elements().removeClass('faded highlighted');
-        if (!q) return;
-        var matches = cy.nodes().filter(function (n) {
-          return (n.data('label') || '').toLowerCase().indexOf(q) !== -1;
-        });
-        if (matches.length === 0) return;
+        if (!matches) return;
         cy.elements().addClass('faded');
-        matches.removeClass('faded').addClass('highlighted');
-        matches.connectedEdges().removeClass('faded');
+        // Unfading the closed neighbourhood rather than just the incident edges
+        // keeps the two mechanisms in agreement: everything search lights is
+        // also something search leaves visible.
+        matches.closedNeighborhood().removeClass('faded');
+        matches.addClass('highlighted');
         matches.ancestors().removeClass('faded');
-        cy.animate({ fit: { eles: matches, padding: 100 } }, { duration: 250 });
       });
+      applyFocus();
+      if (matches) cy.animate({ fit: { eles: matches, padding: 100 } }, { duration: 250 });
     });
 
     // ---------- copying positions / the whole data file back out ----------

@@ -84,6 +84,14 @@ edgeTypes: {
 `lineStyle` is `solid`, `dashed`, or `dotted`. `arrow` is `triangle` or `none`.
 Both dictionaries also generate the legend and its visibility checkboxes.
 
+`color` and `width` describe the **lit** state. The diagram rests in grey and an
+element takes its configured colour and width when you hover or select it, or
+something one hop away from it — so `width` is how thick a flow gets once it
+lights up, not how thick it always is. `lineStyle` and `arrow` apply in both
+states, so a dashed flow stays recognisably dashed while it's greyed out.
+An element whose `type` isn't in these dictionaries still renders and still
+lights, in a neutral grey, and reports a warning.
+
 ### `nodes`
 
 ```js
