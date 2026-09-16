@@ -289,17 +289,45 @@ moved out of the file.
 ### Stylesheet generation
 
 `buildStylesheet()` starts from a fixed base — node size and label placement,
-`node:parent` styling for groups, bezier edges with a label background, plus
-`.hidden` (`display: none`), `.faded` (`opacity: 0.12`), `.highlighted`, and
-`:selected` rules — then appends one generated rule per dictionary entry:
+`node:parent` styling for groups, bezier edges with a label background — then
+appends generated rules per dictionary entry. Colour is **gated behind the
+`.lit` class** (§7, "Dim by default"), which splits each edge type into two
+rules rather than one:
 
 ```js
-node[type = "service"]   → { background-color }
-edge[type = "rabbitmq"]  → { line-color, target-arrow-color, line-style, width, target-arrow-shape }
+node.lit[type = "service"]  → { background-color }
+edge[type = "rabbitmq"]     → { line-style, target-arrow-shape }   // identity, always
+edge.lit[type = "rabbitmq"] → { line-color, target-arrow-color, width }
 ```
 
-An element whose `type` isn't in the dictionary keeps the grey base style and
-gets a warning, since that is almost always a typo.
+**Why the split.** `lineStyle` and `arrow` are what a line *is*, not how loud it
+is: a dashed file write is dashed whether or not you are looking at it. Putting
+them behind `.lit` would make a type declaring `arrow: "none"` inherit the base
+triangle while dim and then visibly *lose* its arrowhead at the moment it lit up.
+
+Cytoscape resolves conflicts by **declaration order, not CSS specificity** — the
+last block to set a property wins — so the assembly order is load-bearing:
+
+1. base `node` (dim fill, dim label), `node:parent`, base `edge` (thin, grey,
+   labels off)
+2. generic `node.lit` / `edge.lit` — restores width and labels, and supplies a
+   neutral fallback colour
+3. generated identity rules, then generated `.lit` colour rules
+4. `node:parent.lit` — a group box is chrome, so lighting it firms up its
+   outline instead of flooding it with the fallback fill
+5. `.hidden`, `.faded`, `.highlighted`, then `:selected` last
+
+The generic `.lit` rules in step 2 are what lets an element the dictionary
+doesn't cover light up at all: an unknown or missing `type` still renders (with
+a warning, since it is almost always a typo), and a collapsed group can merge
+flows into a meta-edge carrying no type. Without a fallback they would have no
+colour rule to match and could never leave the dim state.
+
+`:selected` sits last so the element you actually clicked stays distinguishable
+from the neighbours it lit up. Its edge width is a `Math.max` floor rather than
+a flat `4`, so a type configured thicker than that doesn't get *thinner* when
+clicked. (Before the dim-by-default change these rules sat *above* the generated
+ones, which quietly meant `edge:selected`'s width never took effect at all.)
 
 Canvas config: `wheelSensitivity: 0.25`, `minZoom: 0.1`, `maxZoom: 4`.
 
@@ -375,13 +403,72 @@ at 52px and painted *under* the detail panel. So at startup the menu element is
 moved to `<body>` and positioned from the button's bounding rect, clamped to the
 viewport on both axes and repositioned on resize.
 
+### Dim by default, focus to light
+
+Past a certain size, "every element in its type colour, all the time" stops
+reading as information and starts reading as noise. So the default is inverted:
+**the diagram rests in light grey and colour is something you summon by pointing
+at things.** At rest every node is a pale fill, every edge a thin pale line, node
+labels are dimmed and edge labels are hidden outright — edge label text being the
+single biggest contributor to the busy feeling. Dash patterns and arrowheads are
+still drawn, so the shape of the graph survives the grey.
+
+Focusing an element lights its **1-hop neighbourhood**: a node lights itself,
+every incident edge, and the node at the far end of each; an edge lights itself
+and its two endpoints. Lit edges return to their configured width and show their
+label. Group boxes are deliberately excluded — they are chrome, and they stay
+dim when the services inside them light.
+
+**Selection and hover do the same thing**, selection being the sticky one and
+hover the transient one. Hover makes scanning a dense area free: you sweep the
+cursor and each flow announces itself without a click or a panel opening.
+
+Three inputs decide what is lit — selection, hover, and search — so they get the
+same treatment as the two filters (§7, "Two independent filters"): computed
+together in `applyFocus()` and applied as one `.lit` toggle in a single
+`cy.batch`. Computed separately, each would clear the others' classes.
+
+```
+lit = 1-hop-neighbourhood( selected ∪ hovered ∪ searchMatches ), over visible elements only
+```
+
+Four things that are less obvious than they look:
+
+- **The walk runs over the visible subgraph.** Classes don't change topology, so
+  without intersecting against `.hidden` a node reachable only across an edge the
+  legend has hidden would still light — a coloured circle with nothing visibly
+  connecting it to what you clicked.
+- **Edge seeds need their endpoints spelled out.** Cytoscape's `neighborhood()`
+  and `connectedEdges()` both iterate only the *nodes* of a collection and drop
+  edges on the floor, so `edge.closedNeighborhood()` is just the edge itself.
+  Leaning on it alone lights the line you clicked and leaves both ends grey.
+- **Focus is driven off `select`/`unselect` events**, not from inside
+  `inspect()`. That way the panel's own node→flow navigation, `closePanel()`,
+  and Escape all light correctly without each having to remember to.
+- **Topology changes have to re-trigger it.** Expanding and collapsing groups
+  rewrites the graph under a cursor that hasn't moved, so no mouseout and no
+  select fires: collapsing takes the hovered element away, expanding puts back
+  edges the lit set was computed without. `cy.on('add remove')` recomputes.
+
+Recomputes are coalesced onto one `requestAnimationFrame` — `inspect()` unselects
+everything before selecting one element, and hover events arrive at pointer rate.
+
+The legend swatches, tag menu, and detail-panel type chips stay in **full
+colour**. They are the key to the colour code, and greying them would make the
+scheme unreadable.
+
 ### Search
 
 Typing in the search box matches node labels (case-insensitive substring),
-fades everything else to 12% opacity, keeps matches' connected edges and
-ancestor groups visible, and animates a fit to the matches. Clearing the box
-restores everything. It's a highlight-and-jump, not a filter — it doesn't touch
-`.hidden`, so it composes with the two filters instead of fighting them.
+fades everything else to 12% opacity, lights the matches and their
+neighbourhoods, keeps that neighbourhood and ancestor groups unfaded, and
+animates a fit to the matches. Clearing the box restores everything. It's a
+highlight-and-jump, not a filter — it doesn't touch `.hidden`, so it composes
+with the two filters instead of fighting them.
+
+Search seeds the focus lighting rather than only fading: left grey, a search
+match would end up *less* prominent than it was before the diagram went dim by
+default.
 
 ### Zoom, fit, and groups
 
@@ -522,7 +609,15 @@ have been needed yet.
 - **Minimap** (`cytoscape-navigator`) — useful once panning a zoomed-in large
   graph makes you lose your place. Same CDN pattern as the existing extensions.
 - **Zoom-dependent label visibility** — hide edge labels below a zoom threshold
-  so a zoomed-out overview isn't a wall of overlapping text.
+  so a zoomed-out overview isn't a wall of overlapping text. Largely superseded:
+  edge labels are now hidden until an edge lights up (§7).
+- **A "colour everything" toggle** — a toolbar button to get the old all-colour
+  view back for a screenshot or a presentation. One button that adds `.lit` to
+  `cy.elements()` and stops `applyFocus()` clearing it. Left out so as not to
+  prejudge that the dim default is wrong; easy to add if it isn't.
+- **Multi-hop lighting** — lighting the 2-hop neighbourhood, or fading by
+  distance. More impressive, less useful: at two hops a dense diagram is lit end
+  to end and nothing has been decluttered.
 - **`cytoscape-cose-bilkent`** — the bundled `cose` layout handles compound
   parents adequately but not beautifully. Drop-in replacement if the auto-layout
   fallback ever looks bad with real grouped data.
@@ -557,15 +652,40 @@ Deliberately out of scope, permanently:
 
 ## 13. Verifying a change
 
-There is no test suite; the check is manual and short.
+```sh
+node tests/run.mjs
+```
 
-1. Open `index.html` from `file://` and confirm the example renders.
-2. Exercise every widget: search, zoom in/out, Fit, expand/collapse groups,
-   legend checkboxes, the tag dropdown, both copy buttons, the dataset picker
-   (with two `dataflow(...)` calls in one file), and the detail panel in both
-   directions (node → flow, edge → endpoint).
-3. Test the failure paths deliberately — especially a bad edge reference, since
-   that's the one that used to kill the whole render. Rename `data/example.js`
-   temporarily to see the setup screen.
-4. Chrome is the primary target; Firefox and Safari are worth a 30-second open
-   on `file://`, since the whole loading model depends on script-tag behaviour.
+The suite drives a real headless Chrome over the DevTools Protocol, clicking and
+hovering the actual canvas and reading back computed Cytoscape styles. It covers
+what used to be a manual checklist: every widget (search, zoom, Fit,
+expand/collapse, legend checkboxes, the tag dropdown, both copy buttons, the
+dataset picker, panel navigation in both directions), the focus lighting in §7,
+the failure paths in §9 including a dangling edge reference and the setup
+screen, and a `file://` load. See `tests/README.md`.
+
+**It needs Node 22+ and a local Chrome, and nothing installed.** That
+constraint is deliberate and worth defending: `npm install` in the test path
+would be the first crack in "a file you double-click" (§12). Node 22's global
+`WebSocket` is what makes talking to Chrome directly cheap enough to avoid a
+`puppeteer` dependency.
+
+The server the tests run against uses an **explicit route table** and never
+serves `data/local.js`. On a real machine that is the user's private diagram;
+tests that loaded it would assert against different infrastructure on every
+machine, and would be reading data that isn't theirs. The `file://` section is
+the one exception — it opens the repo as it sits, so its assertions are
+shape-based and never name an element.
+
+Two things the suite cannot do, which are still on you:
+
+1. **Look at it.** `--screenshots <dir>` writes a PNG per suite. Nothing here
+   checks that the result is *legible* — that the dim grey sits far enough from
+   the lit colours, or that a diagram reads well at a glance.
+2. **Other browsers.** Chrome is the primary target; Firefox and Safari are
+   worth a 30-second open from `file://` after any loader change, since the
+   whole loading model depends on script-tag behaviour.
+
+When fixing a bug, write the assertion that fails first — the suite's own value
+was established by reverting each of the five bugs found while building §7 and
+confirming the relevant assertion went red for each one.

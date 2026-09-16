@@ -60,6 +60,9 @@ the two never see each other, and no submodule machinery is involved.
 ## Features
 
 - **Pan, zoom, search** across the diagram.
+- **Quiet by default** — the whole diagram rests in light grey, and a service or
+  flow takes its colour only when you hover or click it, along with everything
+  one hop away. Big diagrams stay readable instead of turning into confetti.
 - **Click any service or flow** for a detail panel. Fields are free-form: add
   `owner`, `runbook`, `slack`, whatever, purely in the data file.
 - **Group services** into collapsible clusters by team or bounded context.
@@ -79,3 +82,4 @@ the two never see each other, and no submodule machinery is involved.
 | `data/local.js` | Your data. Gitignored; created by you. |
 | `data/README.md` | Dataset field reference. |
 | `DESIGN.md` | How the tool is built and why — the design reference. |
+| `tests/` | Browser test suite: `node tests/run.mjs`. Needs Node 22+ and Chrome, nothing installed. |

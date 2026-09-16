@@ -8,3 +8,4 @@
    2. Tell it to test every change.
    3. Tell it that it can only change the data format in a backwards compatible way.
 5. Update github to automatically close branches after merging.
+6. Have claude write all the test fixtures to files so it doesn't have to regenerate them every time.
