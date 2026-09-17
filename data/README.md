@@ -72,7 +72,7 @@ entry, never a code change.
 ```js
 nodeTypes: {
   service:  { color: "#4C82F7" },
-  database: { color: "#F79B4C" }
+  database: { color: "#F79B4C", shape: "barrel" }
 },
 edgeTypes: {
   rest:     { color: "#4C82F7", lineStyle: "solid",  width: 2, arrow: "triangle" },
@@ -84,11 +84,37 @@ edgeTypes: {
 `lineStyle` is `solid`, `dashed`, or `dotted`. `arrow` is `triangle` or `none`.
 Both dictionaries also generate the legend and its visibility checkboxes.
 
+`shape` is optional on a `nodeTypes` entry and defaults to `ellipse` — leave it
+out and nothing changes. One of:
+
+```
+ellipse                 triangle          round-triangle
+rectangle               round-rectangle   bottom-round-rectangle
+cut-rectangle           barrel            rhomboid
+right-rhomboid          diamond           round-diamond
+pentagon                round-pentagon    hexagon
+round-hexagon           concave-hexagon   heptagon
+round-heptagon          octagon           round-octagon
+star                    tag               round-tag
+vee
+```
+
+A name that isn't on that list draws an ellipse and reports a warning. Every
+shape is drawn inside the same 56x56 box, so the busier ones (`star`, `vee`)
+read as smaller than an ellipse does.
+
+Shape belongs to a **group** the same way `type` does — which is to say it
+doesn't. A node that other nodes name as `parent` is a container and keeps its
+rounded-rectangle box even if you give it a type that asks for something else.
+
 `color` and `width` describe the **lit** state. The diagram rests in grey and an
 element takes its configured colour and width when you hover or select it, or
 something one hop away from it — so `width` is how thick a flow gets once it
 lights up, not how thick it always is. `lineStyle` and `arrow` apply in both
 states, so a dashed flow stays recognisably dashed while it's greyed out.
+`shape` behaves like `lineStyle` rather than like `color`: it applies in both
+states, so a barrel is still barrel-shaped while the diagram is grey.
+
 An element whose `type` isn't in these dictionaries still renders and still
 lights, in a neutral grey, and reports a warning.
 
@@ -181,6 +207,7 @@ render — a bad reference costs you one flow, not the whole diagram:
 - duplicate node or edge ids
 - a `parent` naming a group that isn't defined
 - a `type` missing from `nodeTypes` / `edgeTypes` (renders grey)
+- a `shape` the tool doesn't recognise (renders as an ellipse)
 
 A syntax error in the file itself can't be reported that way, since the file
 never runs. You'll get the setup screen instead; open the browser console

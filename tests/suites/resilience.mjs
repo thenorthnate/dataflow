@@ -31,6 +31,21 @@ export async function run(page, t, ctx) {
   t.eq('which regains width and label', await page.eval(`num('untyped', 'width') + '/' + num('untyped', 'text-opacity')`), '2/1');
   await page.unselectAll();
 
+  t.section('shapes the dictionary cannot honour');
+  t.eq('a shape the tool does not know falls back to an ellipse', await page.eval(`st('n4', 'shape')`), 'ellipse');
+  t.ok('and is reported by name',
+    /trapezoid/.test(await page.eval(`document.getElementById('warning-banner').textContent`)));
+  // A group carrying a type must keep reading as a container, expanded or not:
+  // the generated shape rules sit after node:parent in declaration order, and
+  // a collapsed group stops matching :parent altogether.
+  t.eq('a typed group is still a container', await page.eval(`st('grp', 'shape')`), 'roundrectangle');
+  await page.eval(`document.getElementById('collapse-all').click()`);
+  await page.sleep(900);
+  t.eq('...and stays one when collapsed', await page.eval(`st('grp', 'shape')`), 'roundrectangle');
+  await page.eval(`document.getElementById('expand-all').click()`);
+  await page.sleep(900);
+  await page.park();
+
   t.section('selection emphasis is a floor, not a fixed width');
   t.eq('a thick flow type is still thin while dim', await page.eval(`num('thick', 'width')`), 1);
   await page.select('#n3');

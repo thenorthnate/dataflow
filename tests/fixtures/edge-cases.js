@@ -5,6 +5,9 @@
 //   - "n3"        node whose type is not in nodeTypes
 //   - "untyped"   edge with no type at all
 //   - "fat"       edge type configured thicker than the selection floor (4)
+//   - "odd"       node type asking for a shape the tool does not know
+//   - "grp"       a group node that also carries a type, which must not make
+//                 the container take that type's shape
 //   - a second dataflow() call, for the dataset picker
 //
 // Not under data/, on purpose: .gitignore fails closed on data/*.js, and a
@@ -14,7 +17,9 @@ dataflow({
   "id": "edge-cases",
   "label": "Edge cases",
   "nodeTypes": {
-    "svc": { "color": "#4C82F7" }
+    "svc": { "color": "#4C82F7" },
+    "boxy": { "color": "#4C82F7", "shape": "round-rectangle" },
+    "odd":  { "color": "#4C82F7", "shape": "trapezoid" }
   },
   "edgeTypes": {
     "rest": { "color": "#4C82F7", "lineStyle": "solid", "width": 3, "arrow": "triangle" },
@@ -23,7 +28,11 @@ dataflow({
   "nodes": [
     { "id": "n1", "label": "One",  "type": "svc",               "position": { "x": 0,   "y": 0 } },
     { "id": "n2", "label": "Two",  "type": "svc",               "position": { "x": 220, "y": 0 } },
-    { "id": "n3", "label": "Typo", "type": "nonexistent-type",  "position": { "x": 440, "y": 0 } }
+    { "id": "n3", "label": "Typo", "type": "nonexistent-type",  "position": { "x": 440, "y": 0 } },
+    { "id": "n4", "label": "Odd",  "type": "odd",               "position": { "x": 660, "y": 0 } },
+    // A group that carries a type, which a container must ignore.
+    { "id": "grp", "label": "Grouped", "type": "boxy" },
+    { "id": "n5", "label": "Inside", "type": "svc", "parent": "grp", "position": { "x": 220, "y": 200 } }
   ],
   "edges": [
     { "id": "ok",      "source": "n1", "target": "n2",         "type": "rest", "label": "fine" },

@@ -210,7 +210,7 @@ dataflow({
   label: "Work — Microservices", // shown in toolbar + picker; defaults to id
   schema: 1,                     // data format version
 
-  nodeTypes: { service: { color: "#4C82F7" }, database: { color: "#F79B4C" } },
+  nodeTypes: { service: { color: "#4C82F7" }, database: { color: "#F79B4C", shape: "barrel" } },
   edgeTypes: { rest: { color: "#4C82F7", lineStyle: "solid", width: 2, arrow: "triangle" } },
   tags: ["checkout", "fulfillment"],
   nodes: [ … ],
@@ -295,15 +295,28 @@ appends generated rules per dictionary entry. Colour is **gated behind the
 rules rather than one:
 
 ```js
+node[type = "database"]     → { shape }                            // identity, always
 node.lit[type = "service"]  → { background-color }
 edge[type = "rabbitmq"]     → { line-style, target-arrow-shape }   // identity, always
 edge.lit[type = "rabbitmq"] → { line-color, target-arrow-color, width }
 ```
 
-**Why the split.** `lineStyle` and `arrow` are what a line *is*, not how loud it
-is: a dashed file write is dashed whether or not you are looking at it. Putting
-them behind `.lit` would make a type declaring `arrow: "none"` inherit the base
-triangle while dim and then visibly *lose* its arrowhead at the moment it lit up.
+**Why the split.** `lineStyle`, `arrow` and `shape` are what an element *is*,
+not how loud it is: a dashed file write is dashed whether or not you are looking
+at it, and a database is barrel-shaped either way. Putting them behind `.lit`
+would make a type declaring `arrow: "none"` inherit the base triangle while dim
+and then visibly *lose* its arrowhead at the moment it lit up — and would leave
+the resting diagram a field of identical ellipses that change outline under the
+cursor. Keeping shape outside `.lit` is also what lets the grey state carry more
+than topology: §7's whole argument for dimming is that structure should survive
+the loss of colour.
+
+`shape` is validated against a whitelist (`NODE_SHAPES`) before it reaches the
+stylesheet, with `ellipse` as the fallback. Cytoscape ignores an unknown shape
+silently and logs to a console nobody has open, which is exactly the failure
+mode §9 exists to prevent; the whitelist turns it into a banner warning.
+`polygon` is deliberately not on it — it needs a companion
+`shape-polygon-points` property, so supporting it means a second field.
 
 Cytoscape resolves conflicts by **declaration order, not CSS specificity** — the
 last block to set a property wins — so the assembly order is load-bearing:
@@ -313,9 +326,14 @@ last block to set a property wins — so the assembly order is load-bearing:
 2. generic `node.lit` / `edge.lit` — restores width and labels, and supplies a
    neutral fallback colour
 3. generated identity rules, then generated `.lit` colour rules
-4. `node:parent.lit` — a group box is chrome, so lighting it firms up its
+4. `node:parent` (plus the extension's collapsed-node class) — re-asserting the
+   container shape, since the generated rules above would otherwise let a group
+   that carries a `type` take that type's shape and stop reading as a box. A
+   collapsed group is childless and stops matching `:parent`, hence the second
+   selector
+5. `node:parent.lit` — a group box is chrome, so lighting it firms up its
    outline instead of flooding it with the fallback fill
-5. `.hidden`, `.faded`, `.highlighted`, then `:selected` last
+6. `.hidden`, `.faded`, `.highlighted`, then `:selected` last
 
 The generic `.lit` rules in step 2 are what lets an element the dictionary
 doesn't cover light up at all: an unknown or missing `type` still renders (with
@@ -538,6 +556,7 @@ into a `warnings` array that renders as a dismissible banner under the toolbar
 | Edge referencing an unknown node id | **That edge dropped, everything else renders**, reported by name — this is the most likely transcription typo and used to kill the entire render |
 | `parent` naming a missing node | Treated as ungrouped, reported |
 | `type` missing from its dictionary | Grey fallback kept, reported once per type — almost always a typo |
+| `shape` not a shape the tool knows | Drawn as an ellipse, reported once per type |
 | No positions | Auto-layout + toast (§8) |
 | Zero nodes | "This dataset has no services in it yet" |
 | Duplicate dataset `id` | Last wins, reported |
@@ -615,6 +634,16 @@ have been needed yet.
   view back for a screenshot or a presentation. One button that adds `.lit` to
   `cy.elements()` and stops `applyFocus()` clearing it. Left out so as not to
   prejudge that the dim default is wrong; easy to add if it isn't.
+- **Shape-aware legend swatches** — the legend and the panel's type chip show a
+  colour dot regardless of the type's `shape`. Mirroring the shape means a
+  `clip-path` per shape name in CSS, kept in sync with `NODE_SHAPES` by hand —
+  real maintenance for something the canvas already shows. The legend is the key
+  to the *colour* code, which it still is. Worth revisiting only if a shaped
+  diagram turns out to read worse without it.
+- **Per-type node size** — every shape is drawn inside the same 56x56 box, so
+  the busier ones (`star`, `vee`) read as smaller than an ellipse. `width` and
+  `height` on a `nodeTypes` entry would be the same one-line generated-rule
+  change as `shape`; nobody has asked yet.
 - **Multi-hop lighting** — lighting the 2-hop neighbourhood, or fading by
   distance. More impressive, less useful: at two hops a dense diagram is lit end
   to end and nothing has been decluttered.
