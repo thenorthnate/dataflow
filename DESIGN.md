@@ -40,7 +40,7 @@ Three properties drive nearly every decision below:
 ## 2. Architecture at a glance
 
 ```
-index.html         The entire tool: styles, markup, loader, diagram. ~1070 lines.
+index.html         The entire tool: styles, markup, loader, diagram, editor. ~2,600 lines.
                    The only file that changes when a feature is added.
 data/example.js    Committed demo dataset. Also the template you copy.
 data/local.js      Your real data. GITIGNORED. Created by you, never committed.
@@ -197,6 +197,12 @@ and document; tearing that down correctly on every switch is exactly the kind of
 double-binding bug not worth owning. A reload is one line, always correct, and
 on a local file it's instant.
 
+The one exception is the data editor (§7, "Editing data"), whose edits live only
+in memory and would be lost by a reload. It rebuilds the diagram in place, and
+the way it stays clear of that double-binding bug is that the legend and tag
+menu are split into a render half that is safe to re-run and listeners bound
+exactly once at startup.
+
 ---
 
 ## 5. The data model
@@ -274,13 +280,14 @@ The script is organised as:
 
 | Piece | Responsibility |
 |---|---|
-| `buildElements(graph)` | Validate a dataset into Cytoscape elements, collecting warnings. Returns `{ elements, usePreset }`. |
-| `renderWarnings()` | Render the collected warnings as a dismissible banner. |
+| `buildElements(graph)` | Validate a dataset into Cytoscape elements. Returns `{ elements, usePreset, warnings }` — its own warnings rather than a shared list, since the editor re-runs it after every change. |
+| `renderWarnings(list)` | Render warnings as a dismissible banner; an empty list hides it. |
 | `showSetup(broken)` | Full-canvas screen for "no dataset" or "your file has a syntax error." |
 | `loadScript(src, cb)` | Script-tag injection; reports found/errored separately. |
 | `pickDataset` / `buildDatasetPicker` | URL param → localStorage → first registered. |
 | `boot()` / `start()` | The resolution chain, then title, picker, `initDiagram`, banner. |
-| `initDiagram(graph)` | Everything below: stylesheet, Cytoscape init, panel, filters, search, copy-out. |
+| `initDiagram(graph)` | Everything below: stylesheet, Cytoscape init, panel, filters, search, copy-out, and `refreshDiagram()`. Returns the small API the editor uses. |
+| `initEditor(graph, diagram)` | The Edit view (§7, "Editing data"). Talks to the diagram only through that API, never to Cytoscape. |
 
 `initDiagram` taking the dataset as an argument is the whole shape of the
 tool/data refactor — the ~360 lines inside it were left untouched when the data
@@ -498,6 +505,58 @@ Groups collapse and expand by double-tapping a node, or wholesale via the
 `Expand groups` / `Collapse groups` buttons. Collapsing is the highest-leverage
 feature for a large diagram — it turns 80 nodes into 8 clusters.
 
+### Editing data
+
+A `Diagram | Edit` toggle in the toolbar opens a form editor over the canvas for
+every part of the data model: dataset `id`/`label`/`schema`, the `nodeTypes` and
+`edgeTypes` dictionaries, the ordered `tags` list, and every node and edge with
+its `details`. Saving is the existing **Copy data file** button — there is still
+no save endpoint (§12), and the clipboard round-trip is the whole persistence
+story.
+
+**It edits the dataset object in place.** `currentDataFile()` already serialises
+that object, so the copy button needed no new serialiser, and keys the editor
+doesn't own pass through untouched. Cleared optional fields are deleted, not
+written as `""` / `[]` / `{}`, and a field the editor adds is slotted where
+`data/README.md`'s field order puts it, so the copied file reads like a
+hand-written one.
+
+**Renames cascade.** A node id is rewritten in every edge's `source`/`target`
+and every member's `parent`; a type key in every element's `type`; a tag in
+every element's `tags`. Removing something that is in use asks first and then
+clears the references: a removed type leaves its elements untyped (valid, no
+warning), a removed tag is stripped from every element, and a deleted node takes
+its incident edges with it while its members are moved out of the group.
+
+**Validation blocks only what would be ambiguous** — an empty or duplicate id,
+type, tag or detail key, half a position, a non-positive width. The field turns
+red with the reason and the dataset keeps its old value. Everything else is
+*reported*: the editor re-runs `buildElements()` after each change and lists its
+warnings, so the editor and the banner can never disagree, and problems already
+in the loaded file (a dangling edge) can be fixed there. Text fields commit on
+change, not per keystroke, so a half-typed id doesn't cascade a rename on every
+letter. All user strings reach the page through `textContent` / `.value`.
+
+**Switching back rebuilds the diagram in place** (`refreshDiagram()`, and §4 for
+why not a reload): elements and stylesheet are replaced from the dataset, the
+legend and tag menu re-render, filter state is pruned of types and tags that no
+longer exist (renames carry it across), and the banner re-renders. Collapsed
+groups come back expanded — the extension keeps collapsed members in private
+storage that neither a position sync nor a rebuild can see, so everything is
+expanded on entering the editor.
+
+**Positions: the view you were last in wins.** Entering the editor writes the
+canvas positions into the dataset, so dragging and then editing loses nothing.
+While the editor is open, Copy data file stops overlaying canvas positions —
+the form's are newer. Nodes the editor adds get a position near the centre of
+the view, because one unpositioned leaf would otherwise auto-arrange the whole
+diagram (§8); for the same reason a group that loses its last member is given
+one, and a node that gains its first member drops its own.
+
+Edits live only in the tab until copied out, so the Edit button shows a dot
+while there are uncopied edits, and leaving the page (including via the dataset
+picker, which reloads) asks first. There is no undo.
+
 ---
 
 ## 8. Saving layout changes
@@ -523,6 +582,10 @@ their previously authored position rather than overwriting it with a stale one.
 Clipboard writes fall back to a selectable `<textarea>` in the detail panel when
 `navigator.clipboard` is unavailable or blocked — which it often is on
 `file://`.
+
+Copy data file also works from the Edit view (§7, "Editing data"), where it
+serialises the dataset as edited, without the canvas overlay. Copy layout is
+canvas-only and hidden there.
 
 ### Layout fallback
 
@@ -655,6 +718,14 @@ have been needed yet.
   the current dataset into a copy of the page would restore that as an on-demand
   snapshot rather than the thing you maintain. Keeping the data shape trivially
   serializable is what leaves this door open.
+- **Undo in the editor** — edits are applied as they're made, with a
+  confirmation only for removals that cascade. A "Revert to loaded data" button
+  (a deep copy of the dataset taken at startup) would be cheap; a real undo
+  stack is more than the editor's size justifies so far.
+- **Splitting the editor out** — it roughly doubled `index.html`. If the file
+  gets unwieldy, a second classic `<script src="editor.js">` still loads from
+  `file://` with no build step; not done because "the only file that changes
+  when a feature is added" is a property worth keeping until it hurts.
 - **"Reload data" button** — editing the data file doesn't update an open page;
   a `location.reload()` button saves the trip to the browser chrome during a
   long editing session.
@@ -691,7 +762,9 @@ what used to be a manual checklist: every widget (search, zoom, Fit,
 expand/collapse, legend checkboxes, the tag dropdown, both copy buttons, the
 dataset picker, panel navigation in both directions), the focus lighting in §7,
 the failure paths in §9 including a dangling edge reference and the setup
-screen, and a `file://` load. See `tests/README.md`.
+screen, a `file://` load, and every section of the data editor — checked at
+both ends, in what the rebuilt canvas draws and in what Copy data file emits.
+See `tests/README.md`.
 
 **It needs Node 22+ and a local Chrome, and nothing installed.** That
 constraint is deliberate and worth defending: `npm install` in the test path

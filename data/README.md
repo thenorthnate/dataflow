@@ -198,6 +198,18 @@ One caveat for both: expand any collapsed groups before copying. Children of a
 collapsed group aren't on the canvas, so they keep their previously saved
 positions rather than picking up new ones.
 
+## Editing in the browser
+
+Instead of editing the file by hand, you can click **Edit** in the toolbar for a
+form over every part of the dataset — types, tags, nodes, edges and their
+`details`. Renaming a node, type or tag updates everything that refers to it.
+Switch back to **Diagram** to see the result, then use **Copy data file** and
+paste it over `data/local.js`.
+
+Edits exist only in the open tab until you do that; the **Edit** button shows a
+dot while there are edits you haven't copied out. The same caveat as above
+applies: the copied file is regenerated, so comments in your data file are lost.
+
 ## When something is wrong
 
 Mistakes are reported in a banner under the toolbar rather than breaking the

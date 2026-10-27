@@ -355,6 +355,225 @@
   }
 
   @media (max-width: 1100px) { #toolbar .hint { display: none; } }
+
+  /* ---------- Diagram | Edit view toggle ---------- */
+  #view-toggle { display: flex; flex: none; }
+  #view-toggle[hidden] { display: none; }
+  #toolbar #view-toggle button { border-radius: 0; }
+  #toolbar #view-toggle button:first-child { border-radius: 6px 0 0 6px; }
+  #toolbar #view-toggle button:last-child { border-radius: 0 6px 6px 0; margin-left: -1px; }
+  #toolbar #view-toggle button[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  #view-edit.dirty::after { content: " \2022"; }
+
+  /* The editor covers the canvas rather than replacing it, so the diagram
+     keeps its viewport and state underneath. Everything that only acts on the
+     canvas is hidden while it is up; Copy data file stays. */
+  body.editing #search-box,
+  body.editing #zoom-in,
+  body.editing #zoom-out,
+  body.editing #fit,
+  body.editing #expand-all,
+  body.editing #collapse-all,
+  body.editing #copy-layout,
+  body.editing #tag-filter,
+  body.editing #tag-filter-menu,
+  body.editing #legend,
+  body.editing #toolbar .hint { display: none !important; }
+
+  /* ---------- data editor ---------- */
+  #editor-view {
+    position: absolute;
+    top: 52px; left: 0; right: 0; bottom: 0;
+    z-index: 19;
+    background: var(--bg);
+    display: flex;
+    font-size: 13px;
+  }
+  #editor-view[hidden] { display: none; }
+  .ed-nav {
+    width: 210px;
+    flex: none;
+    background: var(--panel-bg);
+    border-right: 1px solid var(--border);
+    padding: 14px 10px;
+    overflow-y: auto;
+  }
+  .ed-tab {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    border: none;
+    background: none;
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 13.5px;
+    color: var(--text);
+    cursor: pointer;
+    text-align: left;
+  }
+  .ed-tab:hover { background: #f0f3fb; }
+  .ed-tab.active { background: #e6edfd; color: var(--accent); font-weight: 600; }
+  .ed-count { font-size: 12px; color: var(--muted); font-weight: normal; }
+  .ed-problems {
+    margin-top: 16px;
+    padding: 12px 10px 0;
+    border-top: 1px solid var(--border);
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .ed-problems.has { color: #5b4708; }
+  .ed-problems-title { font-weight: 600; }
+  .ed-problems ul { margin: 6px 0 0; padding-left: 16px; }
+  .ed-problems li { padding: 2px 0; }
+  .ed-main {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    padding: 20px 24px 48px;
+  }
+  .ed-main h2 { font-size: 18px; margin: 0 0 4px; }
+  .ed-intro { color: var(--muted); margin: 0 0 16px; max-width: 680px; line-height: 1.5; }
+  .ed-muted { color: var(--muted); }
+
+  .ed-input {
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font: inherit;
+    font-size: 13px;
+    background: #fff;
+    color: var(--text);
+    min-width: 0;
+  }
+  .ed-input:focus { outline: 2px solid #c9d8fc; border-color: var(--accent); }
+  .ed-input.invalid { border-color: #d93025; background: #fff5f5; }
+  .ed-error { color: #b3261e; font-size: 11.5px; }
+  .ed-error:empty { display: none; }
+  .ed-note { color: var(--muted); font-size: 11.5px; margin-top: 3px; }
+  .ed-num { width: 90px; }
+  .ed-key { width: 150px; }
+  .ed-colour-pair { display: inline-flex; align-items: center; gap: 6px; }
+  .ed-colour { width: 30px; height: 28px; padding: 0 2px; border: 1px solid var(--border); border-radius: 6px; background: #fff; cursor: pointer; }
+  .ed-colour-text { width: 92px; font-family: ui-monospace, monospace; font-size: 12px; }
+  .ed-btn {
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .ed-btn:hover { background: #f0f3fb; border-color: var(--accent); }
+  .ed-btn:disabled { opacity: 0.45; cursor: default; background: #fff; border-color: var(--border); }
+  .ed-btn.danger:hover:not(:disabled) { border-color: #d93025; color: #b3261e; background: #fff5f5; }
+  .ed-btn.icon { padding: 3px 8px; }
+  .ed-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+  .ed-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .ed-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ed-table td { padding: 6px 10px; border-bottom: 1px solid #f0f1f5; vertical-align: top; }
+  .ed-table tr:last-child td { border-bottom: none; }
+  .ed-table td.ed-mid { vertical-align: middle; }
+  .ed-edge-preview { display: block; margin-top: 6px; }
+  .ed-table .swatch.round { margin-top: 8px; }
+
+  .ed-split { display: flex; gap: 20px; align-items: flex-start; }
+  .ed-master {
+    width: 320px;
+    flex: none;
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 52px - 120px);
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .ed-list-tools { display: flex; gap: 6px; padding: 10px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .ed-list-tools .ed-input { flex: 1 1 100%; }
+  .ed-list { overflow-y: auto; padding: 4px; }
+  .ed-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    min-width: 0;
+  }
+  .ed-row:hover { background: #f0f3fb; }
+  .ed-row.active { background: #e6edfd; }
+  .ed-row-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ed-row-id { color: var(--muted); font-size: 11.5px; font-family: ui-monospace, monospace; flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ed-badge { font-size: 10.5px; color: var(--muted); background: #f0f2f7; border-radius: 999px; padding: 1px 7px; flex: none; }
+  .ed-empty { color: var(--muted); padding: 10px; }
+
+  .ed-form {
+    flex: 1;
+    min-width: 0;
+    max-width: 680px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .ed-form h3 { font-size: 16px; margin: 0 0 14px; display: flex; align-items: center; gap: 8px; word-break: break-word; }
+  .ed-field { margin-bottom: 14px; }
+  .ed-field > .ed-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .ed-field > input.ed-input[type="text"], .ed-field > select.ed-input { width: 100%; }
+  .ed-inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ed-inline select.ed-input { flex: 1; min-width: 140px; }
+  .ed-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    margin: 0 6px 6px 0;
+    background: #f0f2f7;
+    border-radius: 999px;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  .ed-chip.undeclared { background: #fff8e1; color: #5b4708; }
+  .ed-detail-row { display: grid; grid-template-columns: minmax(100px, 170px) 1fr auto; gap: 6px; margin-bottom: 6px; align-items: start; }
+  .ed-detail-row textarea { width: 100%; min-height: 30px; resize: vertical; }
+  .ed-detail-key { width: 100%; }
+  .ed-add-row { display: flex; gap: 6px; margin-top: 12px; }
+
+  @media (max-width: 860px) {
+    .ed-nav { width: 150px; }
+    .ed-split { flex-direction: column; align-items: stretch; }
+    .ed-master { width: auto; position: static; max-height: 40vh; }
+  }
 </style>
 <script>
   // Files in data/ register themselves by calling dataflow({...}). This shim
@@ -379,6 +598,10 @@
   <div id="toolbar">
     <h1 id="diagram-title">Dataflow Diagram</h1>
     <select id="dataset-picker" title="Switch dataset" hidden></select>
+    <div id="view-toggle" role="group" aria-label="View" hidden>
+      <button id="view-diagram" type="button" aria-pressed="true" title="Show the diagram">Diagram</button>
+      <button id="view-edit" type="button" aria-pressed="false" title="Edit the data">Edit</button>
+    </div>
     <input id="search-box" type="text" placeholder="Search services…" />
     <button id="zoom-in" title="Zoom in">+</button>
     <button id="zoom-out" title="Zoom out">&minus;</button>
@@ -400,6 +623,11 @@
   <div id="cy"></div>
 
   <div id="setup-screen" hidden></div>
+
+  <div id="editor-view" hidden>
+    <nav class="ed-nav" id="ed-nav" aria-label="Data sections"></nav>
+    <div class="ed-main" id="ed-main"></div>
+  </div>
 
   <div id="legend"></div>
 
@@ -447,7 +675,12 @@
     }
 
     // ---------- validate a dataset into cytoscape elements ----------
+    // Its warnings are returned rather than added to the page-wide list, since
+    // the editor re-runs this after every change and a problem that has been
+    // fixed has to disappear rather than accumulate.
     function buildElements(graph) {
+      var problems = [];
+      function warn(msg) { problems.push(msg); }
       var nodeTypes = graph.nodeTypes || {};
       var edgeTypes = graph.edgeTypes || {};
 
@@ -516,17 +749,17 @@
 
       // Only honour authored positions if every leaf node has one; a partial
       // set would silently stack the rest on top of each other at the origin.
-      return { elements: elements, usePreset: leaves > 0 && positioned === leaves };
+      return { elements: elements, usePreset: leaves > 0 && positioned === leaves, warnings: problems };
     }
 
-    function renderWarnings() {
-      if (!warnings.length) return;
+    function renderWarnings(list) {
       var banner = document.getElementById('warning-banner');
+      if (!list.length) { banner.hidden = true; banner.innerHTML = ''; return; }
       banner.innerHTML =
-        '<div class="grow"><strong>' + warnings.length +
-        (warnings.length === 1 ? ' problem' : ' problems') + ' in this dataset.</strong> ' +
+        '<div class="grow"><strong>' + list.length +
+        (list.length === 1 ? ' problem' : ' problems') + ' in this dataset.</strong> ' +
         '<button type="button" class="toggle">Show details</button>' +
-        '<ul hidden>' + warnings.map(function (w) { return '<li>' + escapeHtml(w) + '</li>'; }).join('') + '</ul></div>' +
+        '<ul hidden>' + list.map(function (w) { return '<li>' + escapeHtml(w) + '</li>'; }).join('') + '</ul></div>' +
         '<button type="button" class="close" title="Dismiss">&times;</button>';
       var list = banner.querySelector('ul');
       var toggle = banner.querySelector('.toggle');
@@ -642,8 +875,7 @@
       document.title = chosen.label + ' — Dataflow';
       buildDatasetPicker(list, chosen);
 
-      initDiagram(chosen);
-      renderWarnings();
+      initEditor(chosen, initDiagram(chosen));
     }
 
     function boot() {
@@ -661,12 +893,24 @@
     }
 
     // ---------- the diagram itself ----------
+    // Returns the handful of operations the editor needs (see initEditor), so
+    // the editor never reaches into Cytoscape itself.
     function initDiagram(graph) {
-    (function () {
+    return (function () {
     'use strict';
 
-    var nodeTypes = graph.nodeTypes || {};
-    var edgeTypes = graph.edgeTypes || {};
+    // The editor mutates this object in place, so the four required
+    // collections have to exist on it. Copy data file always writes them out
+    // anyway, so filling them in changes nothing about its output.
+    graph.nodeTypes = graph.nodeTypes || {};
+    graph.edgeTypes = graph.edgeTypes || {};
+    graph.nodes = graph.nodes || [];
+    graph.edges = graph.edges || [];
+
+    // Reassigned by refreshDiagram() after an edit, so every closure below
+    // reads through these rather than capturing the dictionaries once.
+    var nodeTypes = graph.nodeTypes;
+    var edgeTypes = graph.edgeTypes;
     var allTags = graph.tags || [];
 
     // ---------- filter state (type-legend + tag dropdown combine via AND) ----------
@@ -857,14 +1101,15 @@
     }
 
     // ---------- init cytoscape ----------
+    var AUTO_LAYOUT = {
+      name: 'cose', animate: false, fit: true, padding: 40,
+      nodeRepulsion: 12000, idealEdgeLength: 120, nestingFactor: 1.2
+    };
     var cy = cytoscape({
       container: document.getElementById('cy'),
       elements: elements,
       style: buildStylesheet(),
-      layout: built.usePreset ? { name: 'preset' } : {
-        name: 'cose', animate: false, fit: true, padding: 40,
-        nodeRepulsion: 12000, idealEdgeLength: 120, nestingFactor: 1.2
-      },
+      layout: built.usePreset ? { name: 'preset' } : AUTO_LAYOUT,
       wheelSensitivity: 0.25,
       minZoom: 0.1,
       maxZoom: 4
@@ -966,11 +1211,12 @@
       scheduleFocus();
     });
 
-    if (!built.usePreset) {
+    function noLayoutToast() {
       setTimeout(function () {
         flashToast('No saved layout — arranged automatically. Drag things, then use “Copy data file”.', 5000);
       }, 400);
     }
+    if (!built.usePreset) noLayoutToast();
 
     // ---------- detail panel ----------
     var panel = document.getElementById('detail-panel');
@@ -996,7 +1242,7 @@
       var html = '<h2>' + escapeHtml(d.label) + '</h2>';
       if (d.type) {
         html += '<div class="type-chip"><span class="swatch round" style="background:' +
-          (typeCfg ? typeCfg.color : '#888') + '"></span>' + escapeHtml(prettyKey(d.type)) + '</div>';
+          escapeHtml(typeCfg ? typeCfg.color : '#888') + '"></span>' + escapeHtml(prettyKey(d.type)) + '</div>';
       }
       if (parentLabel) html += '<div class="meta-line">Group: ' + escapeHtml(parentLabel) + '</div>';
       html += renderTagChips(d.tags);
@@ -1009,7 +1255,7 @@
           var otherId = ed.source === d.id ? ed.target : ed.source;
           var otherNode = cy.getElementById(otherId);
           var dir = ed.source === d.id ? '→' : '←';
-          html += '<li data-edge-id="' + e.id() + '"><span>' + dir + ' ' +
+          html += '<li data-edge-id="' + escapeHtml(e.id()) + '"><span>' + dir + ' ' +
             escapeHtml(otherNode.data('label')) + '</span><span class="flow-type">' +
             escapeHtml(prettyKey(ed.type)) + '</span></li>';
         });
@@ -1031,12 +1277,12 @@
       var html = '<h2>' + escapeHtml(d.label || (src.data('label') + ' → ' + tgt.data('label'))) + '</h2>';
       if (d.type) {
         html += '<div class="type-chip"><span class="swatch" style="background:' +
-          (typeCfg ? typeCfg.color : '#888') + '"></span>' + escapeHtml(prettyKey(d.type)) + '</div>';
+          escapeHtml(typeCfg ? typeCfg.color : '#888') + '"></span>' + escapeHtml(prettyKey(d.type)) + '</div>';
       }
       html += '<div class="meta-line flow-endpoints">' +
-        '<span class="endpoint-link" data-node-id="' + src.id() + '">' + escapeHtml(src.data('label')) + '</span>' +
+        '<span class="endpoint-link" data-node-id="' + escapeHtml(src.id()) + '">' + escapeHtml(src.data('label')) + '</span>' +
         '<span class="arrow">→</span>' +
-        '<span class="endpoint-link" data-node-id="' + tgt.id() + '">' + escapeHtml(tgt.data('label')) + '</span>' +
+        '<span class="endpoint-link" data-node-id="' + escapeHtml(tgt.id()) + '">' + escapeHtml(tgt.data('label')) + '</span>' +
         '</div>';
       html += renderTagChips(d.tags);
       html += '<div class="detail-rows">' + describeEntries(d.details) + '</div>';
@@ -1091,90 +1337,102 @@
       scheduleFocus();
     }
 
+    // The legend and tag menu are both re-rendered after an edit, so each is
+    // split into a render half (innerHTML only, safe to repeat) and listeners
+    // bound exactly once here, delegated from a container that is never
+    // replaced. Binding inside the render half would add a second listener per
+    // edit — the double-binding bug the dataset picker reloads to avoid.
+
     // ---------- legend (built from nodeTypes / edgeTypes, drives type filtering) ----------
-    function buildLegend() {
-      var legend = document.getElementById('legend');
+    var legend = document.getElementById('legend');
+    function renderLegend() {
       var html = '<div class="legend-title">Legend</div><div class="legend-subtitle">Flows</div>';
       Object.keys(edgeTypes).forEach(function (type) {
-        html += '<label class="legend-row"><input type="checkbox" checked data-kind="edge" data-type="' + type +
-          '" /><span class="swatch" style="background:' + edgeTypes[type].color + '"></span>' + escapeHtml(prettyKey(type)) + '</label>';
+        html += '<label class="legend-row"><input type="checkbox"' + (hiddenEdgeTypes.has(type) ? '' : ' checked') +
+          ' data-kind="edge" data-type="' + escapeHtml(type) +
+          '" /><span class="swatch" style="background:' + escapeHtml(edgeTypes[type].color) + '"></span>' + escapeHtml(prettyKey(type)) + '</label>';
       });
       html += '<div class="legend-subtitle">Services</div>';
       Object.keys(nodeTypes).forEach(function (type) {
-        html += '<label class="legend-row"><input type="checkbox" checked data-kind="node" data-type="' + type +
-          '" /><span class="swatch round" style="background:' + nodeTypes[type].color + '"></span>' + escapeHtml(prettyKey(type)) + '</label>';
+        html += '<label class="legend-row"><input type="checkbox"' + (hiddenNodeTypes.has(type) ? '' : ' checked') +
+          ' data-kind="node" data-type="' + escapeHtml(type) +
+          '" /><span class="swatch round" style="background:' + escapeHtml(nodeTypes[type].color) + '"></span>' + escapeHtml(prettyKey(type)) + '</label>';
       });
       legend.innerHTML = html;
-      legend.addEventListener('change', function (evt) {
-        var t = evt.target;
-        if (t.matches('input[type="checkbox"]')) {
-          var set = t.dataset.kind === 'edge' ? hiddenEdgeTypes : hiddenNodeTypes;
-          if (t.checked) set.delete(t.dataset.type); else set.add(t.dataset.type);
-          recomputeVisibility();
-        }
-      });
     }
-    buildLegend();
+    legend.addEventListener('change', function (evt) {
+      var t = evt.target;
+      if (t.matches('input[type="checkbox"]')) {
+        var set = t.dataset.kind === 'edge' ? hiddenEdgeTypes : hiddenNodeTypes;
+        if (t.checked) set.delete(t.dataset.type); else set.add(t.dataset.type);
+        recomputeVisibility();
+      }
+    });
+    renderLegend();
 
     // ---------- tag filter dropdown (built from top-level "tags", drives tag filtering) ----------
-    function buildTagFilter() {
-      var wrap = document.getElementById('tag-filter');
-      var btn = document.getElementById('tag-filter-btn');
-      var menu = document.getElementById('tag-filter-menu');
+    var tagWrap = document.getElementById('tag-filter');
+    var tagBtn = document.getElementById('tag-filter-btn');
+    var tagMenu = document.getElementById('tag-filter-menu');
 
-      if (!allTags.length) { wrap.style.display = 'none'; return; }
+    // Escape the toolbar's clipping and stacking context (see the CSS note).
+    document.body.appendChild(tagMenu);
 
-      // Escape the toolbar's clipping and stacking context (see the CSS note).
-      document.body.appendChild(menu);
-
-      menu.innerHTML = allTags.map(function (tag) {
-        return '<label class="legend-row"><input type="checkbox" data-tag="' + escapeHtml(tag) +
-          '" />' + escapeHtml(prettyKey(tag)) + '</label>';
+    // Hides the whole control when there are no tags rather than returning
+    // early, since an edit can give a tagless dataset its first tag.
+    function renderTagFilter() {
+      tagWrap.style.display = allTags.length ? '' : 'none';
+      if (!allTags.length) tagMenu.hidden = true;
+      tagMenu.innerHTML = allTags.map(function (tag) {
+        return '<label class="legend-row"><input type="checkbox"' + (selectedTags.has(tag) ? ' checked' : '') +
+          ' data-tag="' + escapeHtml(tag) + '" />' + escapeHtml(prettyKey(tag)) + '</label>';
       }).join('');
-
-      function updateButtonLabel() {
-        btn.innerHTML = (selectedTags.size ? 'Tags (' + selectedTags.size + ')' : 'Tags') + ' &#9662;';
-      }
-
-      menu.addEventListener('change', function (evt) {
-        var t = evt.target;
-        if (t.matches('input[type="checkbox"]')) {
-          if (t.checked) selectedTags.add(t.dataset.tag); else selectedTags.delete(t.dataset.tag);
-          updateButtonLabel();
-          recomputeVisibility();
-        }
-      });
-
-      // Anchor the menu under its button, kept within the viewport on both
-      // axes so it stays usable in a short or narrow window.
-      function positionMenu() {
-        var r = btn.getBoundingClientRect();
-        menu.style.top = (r.bottom + 6) + 'px';
-        menu.style.maxHeight = Math.max(120, Math.min(320, window.innerHeight - r.bottom - 22)) + 'px';
-        var left = Math.min(r.left, window.innerWidth - menu.offsetWidth - 8);
-        menu.style.left = Math.max(8, left) + 'px';
-      }
-
-      btn.addEventListener('click', function (evt) {
-        evt.stopPropagation();
-        menu.hidden = !menu.hidden;
-        if (!menu.hidden) positionMenu();
-      });
-      document.addEventListener('click', function (evt) {
-        if (!wrap.contains(evt.target) && !menu.contains(evt.target)) menu.hidden = true;
-      });
-      document.addEventListener('keydown', function (evt) {
-        if (evt.key === 'Escape') menu.hidden = true;
-      });
-      window.addEventListener('resize', function () {
-        if (!menu.hidden) positionMenu();
-      });
+      updateTagButtonLabel();
     }
-    buildTagFilter();
+
+    function updateTagButtonLabel() {
+      tagBtn.innerHTML = (selectedTags.size ? 'Tags (' + selectedTags.size + ')' : 'Tags') + ' &#9662;';
+    }
+
+    tagMenu.addEventListener('change', function (evt) {
+      var t = evt.target;
+      if (t.matches('input[type="checkbox"]')) {
+        if (t.checked) selectedTags.add(t.dataset.tag); else selectedTags.delete(t.dataset.tag);
+        updateTagButtonLabel();
+        recomputeVisibility();
+      }
+    });
+
+    // Anchor the menu under its button, kept within the viewport on both
+    // axes so it stays usable in a short or narrow window.
+    function positionMenu() {
+      var r = tagBtn.getBoundingClientRect();
+      tagMenu.style.top = (r.bottom + 6) + 'px';
+      tagMenu.style.maxHeight = Math.max(120, Math.min(320, window.innerHeight - r.bottom - 22)) + 'px';
+      var left = Math.min(r.left, window.innerWidth - tagMenu.offsetWidth - 8);
+      tagMenu.style.left = Math.max(8, left) + 'px';
+    }
+
+    tagBtn.addEventListener('click', function (evt) {
+      evt.stopPropagation();
+      tagMenu.hidden = !tagMenu.hidden;
+      if (!tagMenu.hidden) positionMenu();
+    });
+    document.addEventListener('click', function (evt) {
+      if (!tagWrap.contains(evt.target) && !tagMenu.contains(evt.target)) tagMenu.hidden = true;
+    });
+    document.addEventListener('keydown', function (evt) {
+      if (evt.key === 'Escape') tagMenu.hidden = true;
+    });
+    window.addEventListener('resize', function () {
+      if (!tagMenu.hidden) positionMenu();
+    });
+    renderTagFilter();
 
     // ---------- search ----------
     var searchBox = document.getElementById('search-box');
-    searchBox.addEventListener('input', function () {
+    searchBox.addEventListener('input', function () { runSearch(true); });
+    function runSearch(animate) {
       var q = searchBox.value.trim().toLowerCase();
       var matches = q ? cy.nodes().filter(function (n) {
         return (n.data('label') || '').toLowerCase().indexOf(q) !== -1;
@@ -1198,8 +1456,8 @@
         matches.ancestors().removeClass('faded');
       });
       applyFocus();
-      if (matches) cy.animate({ fit: { eles: matches, padding: 100 } }, { duration: 250 });
-    });
+      if (matches && animate) cy.animate({ fit: { eles: matches, padding: 100 } }, { duration: 250 });
+    }
 
     // ---------- copying positions / the whole data file back out ----------
     function flashToast(msg, ms) {
@@ -1208,13 +1466,17 @@
       toast.classList.add('show');
       setTimeout(function () { toast.classList.remove('show'); }, ms || 1800);
     }
-    function copyOut(text, okMsg, fallbackTitle) {
+    // `done` runs once the text has been handed over, either way: on file://
+    // the clipboard is often blocked, and the fallback textarea is then the
+    // only way the text can leave the page.
+    function copyOut(text, okMsg, fallbackTitle, done) {
+      function fallback() { showCopyFallback(text, fallbackTitle); if (done) done(); }
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text)
-          .then(function () { flashToast(okMsg); })
-          .catch(function () { showCopyFallback(text, fallbackTitle); });
+          .then(function () { flashToast(okMsg); if (done) done(); })
+          .catch(fallback);
       } else {
-        showCopyFallback(text, fallbackTitle);
+        fallback();
       }
     }
     function showCopyFallback(text, title) {
@@ -1230,6 +1492,10 @@
         return { id: n.id(), position: { x: Math.round(n.position('x')), y: Math.round(n.position('y')) } };
       });
     }
+
+    // True while the editor is open. Its position fields are then the newer
+    // copy, and overlaying the canvas would quietly undo them.
+    var canvasStale = false;
 
     // Regenerates the whole file from the in-memory dataset. This is why the
     // positions-only button above still exists: anything not part of the data
@@ -1247,7 +1513,7 @@
         var el = cy.getElementById(n.id);
         // Children of a collapsed group are not in the graph right now, so
         // their authored position is kept rather than overwritten.
-        if (el && el.length && el.isNode() && el.isChildless()) {
+        if (!canvasStale && el && el.length && el.isNode() && el.isChildless()) {
           copy.position = { x: Math.round(el.position('x')), y: Math.round(el.position('y')) };
         }
         return copy;
@@ -1260,14 +1526,1088 @@
       copyOut(JSON.stringify(currentPositions(), null, 2),
         'Positions copied to clipboard', 'Layout JSON');
     });
+    var onDataCopied = null;
     document.getElementById('copy-data').addEventListener('click', function () {
       copyOut(currentDataFile(),
-        'Data file copied — paste over data/local.js', 'Data file');
+        'Data file copied — paste over data/local.js', 'Data file',
+        function () { if (onDataCopied) onDataCopied(); });
     });
 
     // ---------- keep canvas sized on window resize ----------
     window.addEventListener('resize', function () { cy.resize(); });
+
+    renderWarnings(warnings.concat(built.warnings));
+
+    // ---------- rebuilding in place, after an edit ----------
+    // The one place the diagram is rebuilt without a reload: edits live only
+    // in memory, so a reload would throw them away. Everything is re-derived
+    // from `graph` exactly as at startup; the listeners bound above stay as
+    // they are, and only the render halves run again.
+
+    // Children of a collapsed group live in the extension's private storage
+    // rather than in the graph, where neither a position sync nor a rebuild
+    // can see them.
+    function expandEverything() {
+      ec.expandAll({ animate: false, fisheye: false, layoutBy: null });
+    }
+
+    function syncPositionsFromCanvas() {
+      graph.nodes.forEach(function (n) {
+        if (!n || n.id === undefined) return;
+        var el = cy.getElementById(n.id);
+        if (el && el.length && el.isNode() && el.isChildless()) {
+          n.position = { x: Math.round(el.position('x')), y: Math.round(el.position('y')) };
+        }
+      });
+    }
+
+    function setTitle() {
+      var label = graph.label || graph.id;
+      document.getElementById('diagram-title').textContent = label;
+      document.title = label + ' — Dataflow';
+      var picker = document.getElementById('dataset-picker');
+      if (picker.selectedOptions && picker.selectedOptions[0]) picker.selectedOptions[0].textContent = label;
+    }
+
+    // Filter state names types and tags, so it is pruned of ones that no
+    // longer exist; renames are carried across by renamed() as they happen.
+    function pruneFilters() {
+      hiddenNodeTypes.forEach(function (t) { if (!nodeTypes[t]) hiddenNodeTypes.delete(t); });
+      hiddenEdgeTypes.forEach(function (t) { if (!edgeTypes[t]) hiddenEdgeTypes.delete(t); });
+      selectedTags.forEach(function (t) { if (allTags.indexOf(t) === -1) selectedTags.delete(t); });
+    }
+
+    function refreshDiagram() {
+      nodeTypes = graph.nodeTypes;
+      edgeTypes = graph.edgeTypes;
+      allTags = graph.tags || [];
+
+      closePanel();
+      tagMenu.hidden = true;
+      expandEverything();
+      built = buildElements(graph);
+      cy.batch(function () {
+        cy.elements().remove();
+        cy.add(built.elements);
+      });
+      hoverEle = null;
+      cy.style().fromJson(buildStylesheet()).update();
+      if (!built.usePreset) { cy.layout(AUTO_LAYOUT).run(); noLayoutToast(); }
+
+      pruneFilters();
+      renderLegend();
+      renderTagFilter();
+      recomputeVisibility();
+      runSearch(false);
+      setTitle();
+      renderWarnings(warnings.concat(built.warnings));
+    }
+
+    return {
+      refresh: refreshDiagram,
+      setTitle: setTitle,
+      // Everything the editor reports is exactly what the banner would: the
+      // same validator, run over the same object.
+      problems: function () { return warnings.concat(buildElements(graph).warnings); },
+      // Closes the canvas's transient UI and brings `graph` up to date with
+      // anything dragged. Returns the viewport centre in model coordinates,
+      // which is where the editor places nodes it adds.
+      prepareForEdit: function () {
+        closePanel();
+        tagMenu.hidden = true;
+        clearHover();
+        expandEverything();
+        syncPositionsFromCanvas();
+        canvasStale = true;
+        var ext = cy.extent();
+        return { x: (ext.x1 + ext.x2) / 2, y: (ext.y1 + ext.y2) / 2 };
+      },
+      setCanvasStale: function (v) { canvasStale = v; },
+      renamed: function (kind, from, to) {
+        var set = kind === 'node' ? hiddenNodeTypes : kind === 'edge' ? hiddenEdgeTypes : selectedTags;
+        if (set.has(from)) { set.delete(from); set.add(to); }
+      },
+      reveal: function (id) {
+        var el = cy.getElementById(id);
+        if (!el.length) return;
+        inspect(el);
+        cy.animate({ center: { eles: el } }, { duration: 250 });
+      },
+      onDataCopied: function (fn) { onDataCopied = fn; }
+    };
     })();
+    }
+
+    // ---------- the data editor (the "Edit" view) ----------
+    // Edits the in-memory dataset in place. Copy data file already serialises
+    // that object, so it picks edits up without a serialiser of its own, and
+    // keys the editor doesn't own pass through untouched. Optional fields that
+    // are cleared are deleted rather than written empty, so the copied file
+    // reads like a hand-written one.
+    //
+    // Every user-supplied string reaches the page through textContent, .value
+    // or setAttribute (see h()), never through innerHTML.
+    function initEditor(graph, diagram) {
+      var view = document.getElementById('editor-view');
+      var nav = document.getElementById('ed-nav');
+      var main = document.getElementById('ed-main');
+      var diagramBtn = document.getElementById('view-diagram');
+      var editBtn = document.getElementById('view-edit');
+
+      var LINE_STYLES = ['solid', 'dashed', 'dotted'];
+      var ARROWS = ['triangle', 'none'];
+      var SECTIONS = [
+        { key: 'dataset', title: 'Dataset' },
+        { key: 'nodeTypes', title: 'Node types', count: function () { return Object.keys(graph.nodeTypes).length; } },
+        { key: 'edgeTypes', title: 'Edge types', count: function () { return Object.keys(graph.edgeTypes).length; } },
+        { key: 'tags', title: 'Tags', count: function () { return (graph.tags || []).length; } },
+        { key: 'nodes', title: 'Nodes', count: function () { return graph.nodes.length; } },
+        { key: 'edges', title: 'Edges', count: function () { return graph.edges.length; } }
+      ];
+
+      var editing = false;
+      var dirty = false;    // edited since the last Copy data file
+      var pending = false;  // edited since the diagram was last rebuilt
+      var section = 'dataset';
+      var currentNode = null, currentEdge = null;
+      var nodeFilter = '', edgeFilter = '';
+      var listBox = null, formBox = null;
+      var origin = { x: 0, y: 0 }, placed = 0;
+
+      // ---------- DOM helpers ----------
+      function h(tag, attrs, kids) {
+        var e = document.createElement(tag);
+        var value;
+        Object.keys(attrs || {}).forEach(function (k) {
+          var v = attrs[k];
+          if (v === undefined || v === null || v === false) return;
+          if (k === 'value') value = v;
+          else if (k === 'text') e.textContent = v;
+          else if (k === 'checked' || k === 'disabled') e[k] = true;
+          else if (k.indexOf('on') === 0) e.addEventListener(k.slice(2), v);
+          else e.setAttribute(k, v === true ? '' : v);
+        });
+        (kids || []).forEach(function (c) {
+          if (c === null || c === undefined || c === false) return;
+          e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+        });
+        // After the children, so a <select> already has the option to select.
+        if (value !== undefined) e.value = value;
+        return e;
+      }
+
+      // A field whose value can't be committed says why, in place, and the
+      // dataset keeps its previous value until it's fixed.
+      function showError(input, msg) {
+        input.classList.toggle('invalid', !!msg);
+        var box = input.closest('.ed-cell');
+        var err = box && box.querySelector(':scope > .ed-error');
+        if (err) err.textContent = msg || '';
+      }
+      function cell(control) {
+        return h('div', { class: 'ed-cell' }, [control, h('div', { class: 'ed-error' })]);
+      }
+      function field(label, control, note) {
+        if (control.matches && control.matches('input, select, textarea') && !control.getAttribute('aria-label')) {
+          control.setAttribute('aria-label', label);
+        }
+        return h('div', { class: 'ed-field ed-cell' }, [
+          h('div', { class: 'ed-label', text: label }),
+          control,
+          note ? h('div', { class: 'ed-note', text: note }) : null,
+          h('div', { class: 'ed-error' })
+        ]);
+      }
+      function heading(title, intro) {
+        return [h('h2', { text: title }), h('p', { class: 'ed-intro', text: intro })];
+      }
+
+      // Text fields commit on change (blur or Enter), not per keystroke, so a
+      // half-typed id doesn't cascade a rename on every letter. `commit` gets
+      // the trimmed value and returns an error message to refuse it.
+      function textInput(value, commit, attrs) {
+        var last = value === undefined || value === null ? '' : String(value);
+        var input = h('input', Object.assign({ type: 'text', class: 'ed-input', value: last }, attrs));
+        input.addEventListener('change', function () {
+          var v = input.value.trim();
+          if (v === last) { showError(input, null); return; }
+          var err = commit(v, input);
+          showError(input, err);
+          if (!err) { last = v; changed(); }
+        });
+        return input;
+      }
+
+      // An existing value the options don't cover — usually a typo in the
+      // loaded file — is kept and flagged rather than silently swapped.
+      function selectInput(options, value, commit, attrs) {
+        var opts = options.slice();
+        var current = value === undefined || value === null ? '' : String(value);
+        if (current !== '' && !opts.some(function (o) { return o.value === current; })) {
+          opts.push({ value: current, label: current + ' (not defined)' });
+        }
+        var sel = h('select', Object.assign({ class: 'ed-input', value: current }, attrs),
+          opts.map(function (o) { return h('option', { value: o.value, text: o.label }); }));
+        sel.addEventListener('change', function () { commit(sel.value, sel); changed(); });
+        return sel;
+      }
+
+      // The native picker only understands #rrggbb, while a data file may say
+      // "#abc" or "red", so the text field is the authoritative one.
+      function colourInput(value, commit) {
+        var hex6 = /^#[0-9a-f]{6}$/i;
+        var picker = h('input', { type: 'color', class: 'ed-colour', 'aria-label': 'Pick colour',
+          value: hex6.test(value || '') ? value : '#888888' });
+        var text = textInput(value, function (v) {
+          if (!v) return 'A colour is required.';
+          if (hex6.test(v)) picker.value = v;
+          commit(v);
+        }, { class: 'ed-input ed-colour-text', 'aria-label': 'Colour' });
+        picker.addEventListener('input', function () { text.value = picker.value; });
+        picker.addEventListener('change', function () {
+          text.value = picker.value;
+          text.dispatchEvent(new Event('change'));
+        });
+        return h('span', { class: 'ed-colour-pair' }, [picker, text]);
+      }
+
+      function swatch(colour, round) {
+        var s = h('span', { class: 'swatch' + (round ? ' round' : '') });
+        s.style.background = colour || '#888';
+        return s;
+      }
+
+      function edgePreview(cfg) {
+        var NS = 'http://www.w3.org/2000/svg';
+        function s(tag, attrs) {
+          var e = document.createElementNS(NS, tag);
+          Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+          return e;
+        }
+        var colour = cfg.color || '#6b7280';
+        var w = Math.max(0.5, Math.min(Number(cfg.width) || 2, 6));
+        var arrow = (cfg.arrow || 'triangle') !== 'none';
+        var svg = s('svg', { width: 60, height: 16, viewBox: '0 0 60 16', class: 'ed-edge-preview', 'aria-hidden': 'true' });
+        var line = s('line', { x1: 2, y1: 8, x2: arrow ? 48 : 58, y2: 8, stroke: colour, 'stroke-width': w });
+        if (cfg.lineStyle === 'dashed') line.setAttribute('stroke-dasharray', '6 4');
+        if (cfg.lineStyle === 'dotted') {
+          line.setAttribute('stroke-dasharray', '0.1 ' + (w + 3));
+          line.setAttribute('stroke-linecap', 'round');
+        }
+        svg.appendChild(line);
+        if (arrow) svg.appendChild(s('polygon', { points: '47,3 58,8 47,13', fill: colour }));
+        return svg;
+      }
+
+      // ---------- data helpers ----------
+      var has = function (obj, k) { return Object.prototype.hasOwnProperty.call(obj, k); };
+      function liveNodes() { return graph.nodes.filter(Boolean); }
+      function liveEdges() { return graph.edges.filter(Boolean); }
+      function nodeById(id) {
+        for (var i = 0; i < graph.nodes.length; i++) if (graph.nodes[i] && graph.nodes[i].id === id) return graph.nodes[i];
+        return null;
+      }
+      function nodeName(id) { var n = nodeById(id); return n ? (n.label || n.id) : String(id); }
+      function memberCount(n) { return liveNodes().filter(function (m) { return m !== n && m.parent === n.id; }).length; }
+      function isGroup(n) { return n.id !== undefined && memberCount(n) > 0; }
+      function nodeIdTaken(id) { return liveNodes().some(function (n) { return n.id === id; }); }
+      function edgeIdTaken(id) { return liveEdges().some(function (e) { return e.id === id; }); }
+      function uniqueName(base, taken) {
+        if (!taken(base)) return base;
+        for (var i = 2; ; i++) if (!taken(base + '-' + i)) return base + '-' + i;
+      }
+      function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
+
+      // Renames a key in place, keeping its position, so the copied file
+      // doesn't reorder because something was renamed.
+      function renameKey(obj, from, to) {
+        var out = {};
+        Object.keys(obj).forEach(function (k) { out[k === from ? to : k] = obj[k]; });
+        Object.keys(obj).forEach(function (k) { delete obj[k]; });
+        Object.assign(obj, out);
+      }
+      // Sets a key and, if it is new, slots it where data/README.md's field
+      // order puts it rather than at the end — so a field the editor adds
+      // lands where a hand-written file would have it, not after `details`.
+      var NODE_ORDER = ['id', 'label', 'type', 'parent', 'position', 'tags', 'details'];
+      var EDGE_ORDER = ['id', 'source', 'target', 'type', 'label', 'tags', 'details'];
+      function put(el, key, value) {
+        if (has(el, key)) { el[key] = value; return; }
+        var order = graph.edges.indexOf(el) !== -1 ? EDGE_ORDER : NODE_ORDER;
+        var rank = order.indexOf(key);
+        var keys = Object.keys(el);
+        var at = -1;
+        for (var i = 0; rank !== -1 && i < keys.length; i++) {
+          if (order.indexOf(keys[i]) > rank) { at = i; break; }
+        }
+        if (at === -1) { el[key] = value; return; }
+        var out = {};
+        keys.forEach(function (k, j) { if (j === at) out[key] = value; out[k] = el[k]; });
+        keys.forEach(function (k) { delete el[k]; });
+        Object.assign(el, out);
+      }
+      function setTags(el, tags) { if (tags.length) put(el, 'tags', tags); else delete el.tags; }
+
+      // Every childless node needs a position, or the next rebuild falls back
+      // to auto-arranging the whole diagram. Nodes the editor adds are placed
+      // around the centre of the view that was showing when Edit was opened.
+      function nextPosition() {
+        var step = placed++ * 30;
+        return { x: Math.round(origin.x + step), y: Math.round(origin.y + step) };
+      }
+      function placeIfLeaf(n) {
+        if (n && !isGroup(n) && !n.position) put(n, 'position', nextPosition());
+      }
+
+      // Selects need options as {value, label}.
+      function typeOptions(dict) {
+        return [{ value: '', label: '(none)' }].concat(Object.keys(dict).map(function (k) { return { value: k, label: k }; }));
+      }
+      function nodeOptions(exclude) {
+        return liveNodes().filter(function (n) { return n.id !== undefined && !(exclude && exclude(n)); }).map(function (n) {
+          return { value: String(n.id), label: n.label && n.label !== n.id ? n.label + ' (' + n.id + ')' : String(n.id) };
+        });
+      }
+      function descendantsOf(n) {
+        var out = new Set([n]);
+        var grew = true;
+        while (grew) {
+          grew = false;
+          liveNodes().forEach(function (m) {
+            if (!out.has(m) && liveNodes().some(function (p) { return out.has(p) && p.id === m.parent; })) { out.add(m); grew = true; }
+          });
+        }
+        return out;
+      }
+
+      // ---------- state changes ----------
+      function changed() {
+        dirty = true;
+        pending = true;
+        updateToggle();
+        renderNav();
+      }
+
+      function updateToggle() {
+        diagramBtn.setAttribute('aria-pressed', String(!editing));
+        editBtn.setAttribute('aria-pressed', String(editing));
+        editBtn.classList.toggle('dirty', dirty);
+        editBtn.title = dirty ? 'Edit the data — you have edits not yet copied out with “Copy data file”' : 'Edit the data';
+      }
+
+      function enter() {
+        if (editing) return;
+        origin = diagram.prepareForEdit();
+        placed = 0;
+        editing = true;
+        document.body.classList.add('editing');
+        view.hidden = false;
+        updateToggle();
+        renderNav();
+        renderSection();
+      }
+
+      function exit() {
+        if (!editing) return;
+        editing = false;
+        view.hidden = true;
+        document.body.classList.remove('editing');
+        if (pending) { diagram.refresh(); pending = false; }
+        diagram.setCanvasStale(false);
+        updateToggle();
+      }
+
+      function showInDiagram(id) {
+        exit();
+        diagram.reveal(id);
+      }
+
+      // ---------- navigation ----------
+      function renderNav() {
+        nav.replaceChildren();
+        SECTIONS.forEach(function (s) {
+          nav.appendChild(h('button', {
+            type: 'button',
+            class: 'ed-tab' + (s.key === section ? ' active' : ''),
+            'data-section': s.key,
+            'aria-current': s.key === section ? 'true' : null,
+            onclick: function () { show(s.key); }
+          }, [h('span', { text: s.title }), s.count ? h('span', { class: 'ed-count', text: String(s.count()) }) : null]));
+        });
+        var problems = diagram.problems();
+        nav.appendChild(h('div', { class: 'ed-problems' + (problems.length ? ' has' : ''), id: 'ed-problems' }, [
+          h('div', { class: 'ed-problems-title', text: problems.length ? '⚠ ' + plural(problems.length, 'problem') : 'No problems' }),
+          problems.length ? h('ul', null, problems.map(function (p) { return h('li', { text: p }); })) : null
+        ]));
+      }
+
+      function show(key) {
+        section = key;
+        main.scrollTop = 0;
+        renderNav();
+        renderSection();
+      }
+
+      var RENDER = {
+        dataset: renderDataset,
+        nodeTypes: function () { return renderTypes('node'); },
+        edgeTypes: function () { return renderTypes('edge'); },
+        tags: renderTags,
+        nodes: renderNodes,
+        edges: renderEdges
+      };
+      function renderSection() {
+        var top = main.scrollTop;
+        main.replaceChildren.apply(main, RENDER[section]());
+        main.scrollTop = top;
+      }
+
+      // ---------- dataset ----------
+      function renderDataset() {
+        return heading('Dataset', 'The diagram as a whole. The id is what ?dataset= in the URL selects when a file defines several diagrams.').concat([
+          h('div', { class: 'ed-form' }, [
+            field('Id', textInput(graph.id, function (v) {
+              if (!v) return 'An id is required.';
+              graph.id = v;
+            }, { id: 'ed-dataset-id' })),
+            field('Label', textInput(graph.label, function (v) {
+              if (v) graph.label = v; else delete graph.label;
+              diagram.setTitle();
+            }, { id: 'ed-dataset-label', placeholder: graph.id }), 'Shown in the toolbar and the dataset picker. Defaults to the id.'),
+            field('Schema', textInput(graph.schema, function (v) {
+              if (v === '') { delete graph.schema; return; }
+              if (!/^\d+$/.test(v)) return 'The schema version is a whole number.';
+              graph.schema = Number(v);
+            }, { id: 'ed-dataset-schema', type: 'number', min: 1, step: 1, class: 'ed-input ed-num' }),
+              'Data format version. This tool understands ' + TOOL_SCHEMA + '.')
+          ])
+        ]);
+      }
+
+      // ---------- node types / edge types ----------
+      function renderTypes(kind) {
+        var isNode = kind === 'node';
+        var dict = isNode ? graph.nodeTypes : graph.edgeTypes;
+        var elements = isNode ? graph.nodes : graph.edges;
+        var shapes = [{ value: '', label: 'ellipse (default)' }].concat(Object.keys(NODE_SHAPES).filter(function (s) {
+          return s !== 'ellipse';
+        }).map(function (s) { return { value: s, label: s }; }));
+
+        var rows = Object.keys(dict).map(function (key) {
+          var ref = { key: key };
+          var cfg = dict[key];
+          var used = elements.filter(function (el) { return el && el.type === key; }).length;
+          var preview = h('span', { class: 'ed-preview' });
+          function redraw() { preview.replaceChildren(isNode ? swatch(cfg.color, true) : edgePreview(cfg)); }
+          redraw();
+
+          var cols = [
+            h('td', null, [cell(textInput(key, function (v) { return renameType(kind, ref, v); },
+              { class: 'ed-input ed-key', 'aria-label': 'Type name' }))]),
+            h('td', null, [cell(colourInput(cfg.color, function (v) { cfg.color = v; redraw(); }))])
+          ];
+          if (isNode) {
+            cols.push(h('td', null, [selectInput(shapes, cfg.shape, function (v) {
+              if (v) cfg.shape = v; else delete cfg.shape;
+            }, { 'aria-label': 'Shape' })]));
+          } else {
+            cols.push(
+              h('td', null, [selectInput(LINE_STYLES.map(function (s) { return { value: s, label: s }; }), cfg.lineStyle || 'solid',
+                function (v) { cfg.lineStyle = v; redraw(); }, { 'aria-label': 'Line style' })]),
+              h('td', null, [cell(textInput(cfg.width === undefined ? '' : cfg.width, function (v) {
+                if (v === '') delete cfg.width;
+                else if (!(Number(v) > 0)) return 'A positive number.';
+                else cfg.width = Number(v);
+                redraw();
+              }, { type: 'number', min: 0.5, step: 0.5, placeholder: '2', class: 'ed-input ed-num', 'aria-label': 'Width' }))]),
+              h('td', null, [selectInput(ARROWS.map(function (s) { return { value: s, label: s }; }), cfg.arrow || 'triangle',
+                function (v) { cfg.arrow = v; redraw(); }, { 'aria-label': 'Arrow' })])
+            );
+          }
+          cols.push(
+            h('td', null, [preview]),
+            h('td', { class: 'ed-muted ed-mid' }, [used ? 'used by ' + used : 'unused']),
+            h('td', { class: 'ed-mid' }, [h('button', { type: 'button', class: 'ed-btn danger', 'data-action': 'remove-type',
+              onclick: function () { removeType(kind, ref.key); } }, ['Remove'])])
+          );
+          return h('tr', { 'data-type': key }, cols);
+        });
+
+        var head = ['Name', 'Colour'].concat(isNode ? ['Shape'] : ['Line', 'Width', 'Arrow'], ['Preview', 'Usage', '']);
+        return heading(isNode ? 'Node types' : 'Edge types', isNode
+          ? 'What kinds of service exist. A type sets the colour a node lights up in and the shape it is drawn as. Renaming one updates every node that uses it.'
+          : 'What kinds of flow exist. A type sets the colour and width an edge lights up with, and its line style and arrowhead. Renaming one updates every edge that uses it.'
+        ).concat([
+          rows.length ? h('table', { class: 'ed-table', id: 'ed-' + kind + '-types' }, [
+            h('thead', null, [h('tr', null, head.map(function (t) { return h('th', { text: t }); }))]),
+            h('tbody', null, rows)
+          ]) : h('p', { class: 'ed-muted', text: 'No types yet.' }),
+          h('div', { class: 'ed-actions' }, [h('button', { type: 'button', class: 'ed-btn', id: 'ed-add-' + kind + '-type',
+            onclick: function () { addType(kind); } }, ['+ Add ' + kind + ' type'])])
+        ]);
+      }
+
+      function renameType(kind, ref, to) {
+        var dict = kind === 'node' ? graph.nodeTypes : graph.edgeTypes;
+        if (!to) return 'A name is required.';
+        // The name ends up inside a Cytoscape selector, node[type = "…"].
+        if (/["\\]/.test(to)) return 'Names can’t contain " or \\.';
+        if (has(dict, to)) return 'There is already a type called “' + to + '”.';
+        (kind === 'node' ? graph.nodes : graph.edges).forEach(function (el) { if (el && el.type === ref.key) el.type = to; });
+        renameKey(dict, ref.key, to);
+        diagram.renamed(kind, ref.key, to);
+        ref.key = to;
+      }
+
+      function removeType(kind, key) {
+        var dict = kind === 'node' ? graph.nodeTypes : graph.edgeTypes;
+        var users = (kind === 'node' ? graph.nodes : graph.edges).filter(function (el) { return el && el.type === key; });
+        if (users.length && !window.confirm('Remove the “' + key + '” type? ' +
+            plural(users.length, kind) + (users.length === 1 ? ' uses it and' : ' use it and') +
+            ' will be left without a type.')) return;
+        users.forEach(function (el) { delete el.type; });
+        delete dict[key];
+        changed();
+        renderSection();
+      }
+
+      function addType(kind) {
+        var dict = kind === 'node' ? graph.nodeTypes : graph.edgeTypes;
+        var key = uniqueName('new-type', function (k) { return has(dict, k); });
+        dict[key] = kind === 'node'
+          ? { color: '#4C82F7' }
+          : { color: '#4C82F7', lineStyle: 'solid', width: 2, arrow: 'triangle' };
+        changed();
+        renderSection();
+        var keys = main.querySelectorAll('.ed-key');
+        if (keys.length) { keys[keys.length - 1].focus(); keys[keys.length - 1].select(); }
+      }
+
+      // ---------- tags ----------
+      function tagUsers(tag) {
+        return liveNodes().concat(liveEdges()).filter(function (el) { return (el.tags || []).indexOf(tag) !== -1; });
+      }
+
+      function renderTags() {
+        var tags = graph.tags || [];
+        var rows = tags.map(function (tag, i) {
+          var ref = { tag: tag };
+          var used = tagUsers(tag).length;
+          return h('tr', { 'data-tag': tag }, [
+            h('td', null, [cell(textInput(tag, function (v) { return renameTag(ref, v); },
+              { class: 'ed-input ed-key', 'aria-label': 'Tag name' }))]),
+            h('td', { class: 'ed-muted ed-mid' }, [used ? 'used by ' + used : 'unused']),
+            h('td', { class: 'ed-mid' }, [
+              h('button', { type: 'button', class: 'ed-btn icon', title: 'Move up', 'aria-label': 'Move up', 'data-action': 'up',
+                disabled: i === 0, onclick: function () { moveTag(i, -1); } }, ['↑']), ' ',
+              h('button', { type: 'button', class: 'ed-btn icon', title: 'Move down', 'aria-label': 'Move down', 'data-action': 'down',
+                disabled: i === tags.length - 1, onclick: function () { moveTag(i, 1); } }, ['↓']), ' ',
+              h('button', { type: 'button', class: 'ed-btn danger', 'data-action': 'remove-tag',
+                onclick: function () { removeTag(ref.tag); } }, ['Remove'])
+            ])
+          ]);
+        });
+
+        var newTag = h('input', { type: 'text', class: 'ed-input', id: 'ed-new-tag', placeholder: 'new-tag', 'aria-label': 'New tag' });
+        function add() {
+          var err = addTag(newTag.value.trim());
+          showError(newTag, err);
+          if (!err) { renderSection(); var again = document.getElementById('ed-new-tag'); if (again) again.focus(); }
+        }
+        newTag.addEventListener('keydown', function (evt) { if (evt.key === 'Enter') add(); });
+
+        var undeclared = [];
+        liveNodes().concat(liveEdges()).forEach(function (el) {
+          (el.tags || []).forEach(function (t) { if (tags.indexOf(t) === -1 && undeclared.indexOf(t) === -1) undeclared.push(t); });
+        });
+
+        return heading('Tags', 'Workflows elements can belong to, used only by the Tags filter. The order here is the order in the dropdown. Renaming or removing a tag updates every node and edge that has it.').concat([
+          rows.length ? h('table', { class: 'ed-table', id: 'ed-tags' }, [
+            h('thead', null, [h('tr', null, ['Tag', 'Usage', ''].map(function (t) { return h('th', { text: t }); }))]),
+            h('tbody', null, rows)
+          ]) : h('p', { class: 'ed-muted', text: 'No tags yet. With none, the Tags filter is hidden.' }),
+          h('div', { class: 'ed-add-row ed-cell' }, [newTag,
+            h('button', { type: 'button', class: 'ed-btn', id: 'ed-add-tag', onclick: add }, ['+ Add tag']),
+            h('div', { class: 'ed-error' })]),
+          undeclared.length ? h('div', { class: 'ed-field', style: 'margin-top:20px' }, [
+            h('div', { class: 'ed-label', text: 'Used but not declared' }),
+            h('p', { class: 'ed-note', text: 'These are on elements but missing from the list above, so they can’t be chosen in the Tags filter.' }),
+            h('div', null, undeclared.map(function (t) {
+              return h('span', { class: 'ed-chip undeclared' }, [t, ' ',
+                h('button', { type: 'button', class: 'ed-btn icon', 'data-action': 'declare',
+                  onclick: function () { addTag(t); renderSection(); } }, ['Declare'])]);
+            }))
+          ]) : null
+        ]);
+      }
+
+      function addTag(name) {
+        if (!name) return 'Type a tag name first.';
+        if ((graph.tags || []).indexOf(name) !== -1) return 'There is already a tag called “' + name + '”.';
+        graph.tags = graph.tags || [];
+        graph.tags.push(name);
+        changed();
+      }
+
+      function renameTag(ref, to) {
+        if (!to) return 'A name is required.';
+        if (graph.tags.indexOf(to) !== -1) return 'There is already a tag called “' + to + '”.';
+        graph.tags[graph.tags.indexOf(ref.tag)] = to;
+        tagUsers(ref.tag).forEach(function (el) {
+          el.tags = el.tags.map(function (t) { return t === ref.tag ? to : t; });
+        });
+        diagram.renamed('tag', ref.tag, to);
+        ref.tag = to;
+      }
+
+      function moveTag(i, d) {
+        var tags = graph.tags;
+        var t = tags[i]; tags[i] = tags[i + d]; tags[i + d] = t;
+        changed();
+        renderSection();
+      }
+
+      function removeTag(tag) {
+        var users = tagUsers(tag);
+        if (users.length && !window.confirm('Remove the “' + tag + '” tag? It will be taken off ' +
+            plural(users.length, 'element') + '.')) return;
+        users.forEach(function (el) { setTags(el, el.tags.filter(function (t) { return t !== tag; })); });
+        graph.tags.splice(graph.tags.indexOf(tag), 1);
+        if (!graph.tags.length) delete graph.tags;
+        changed();
+        renderSection();
+      }
+
+      // ---------- fields shared by nodes and edges ----------
+      function tagChips(el) {
+        var declared = graph.tags || [];
+        var own = el.tags || [];
+        var all = declared.concat(own.filter(function (t) { return declared.indexOf(t) === -1; }));
+        if (!all.length) return h('p', { class: 'ed-note', text: 'No tags declared yet — add them in the Tags section.' });
+        return h('div', { class: 'ed-chips' }, all.map(function (tag) {
+          var box = h('input', { type: 'checkbox', 'data-tag': tag, checked: own.indexOf(tag) !== -1 });
+          box.addEventListener('change', function () {
+            var next = (el.tags || []).filter(function (t) { return t !== tag; });
+            if (box.checked) next.push(tag);
+            setTags(el, next);
+            changed();
+          });
+          var undeclared = declared.indexOf(tag) === -1;
+          return h('label', { class: 'ed-chip' + (undeclared ? ' undeclared' : ''),
+            title: undeclared ? 'Not in the declared tag list' : null }, [box, tag]);
+        }));
+      }
+
+      // Free-form key/value pairs. A value that isn't a string (a number, say)
+      // is shown as JSON and left exactly as it was unless it is edited.
+      function detailsEditor(el) {
+        var box = h('div', { class: 'ed-details' });
+        function draw() {
+          box.replaceChildren();
+          var d = el.details || {};
+          Object.keys(d).forEach(function (key) {
+            var ref = { key: key };
+            var raw = d[key];
+            var keyIn = textInput(key, function (v) {
+              if (!v) return 'A field name is required.';
+              if (has(el.details, v)) return 'There is already a “' + v + '” field.';
+              renameKey(el.details, ref.key, v);
+              ref.key = v;
+            }, { class: 'ed-input ed-detail-key', 'aria-label': 'Field name' });
+            var valIn = h('textarea', { class: 'ed-input ed-detail-val', rows: 1, 'aria-label': 'Value',
+              value: typeof raw === 'string' ? raw : JSON.stringify(raw) });
+            valIn.addEventListener('change', function () { el.details[ref.key] = valIn.value; changed(); });
+            box.appendChild(h('div', { class: 'ed-detail-row', 'data-key': key }, [cell(keyIn), valIn,
+              h('button', { type: 'button', class: 'ed-btn icon danger', title: 'Remove field', 'aria-label': 'Remove field',
+                'data-action': 'remove-detail', onclick: function () {
+                  delete el.details[ref.key];
+                  if (!Object.keys(el.details).length) delete el.details;
+                  changed();
+                  draw();
+                } }, ['×'])]));
+          });
+          box.appendChild(h('button', { type: 'button', class: 'ed-btn', 'data-action': 'add-detail', onclick: function () {
+            if (!el.details) put(el, 'details', {});
+            el.details[uniqueName('field', function (k) { return has(el.details, k); })] = '';
+            changed();
+            draw();
+            var keys = box.querySelectorAll('.ed-detail-key');
+            keys[keys.length - 1].focus();
+            keys[keys.length - 1].select();
+          } }, ['+ Add field']));
+        }
+        draw();
+        return box;
+      }
+
+      function filterInput(id, value, onInput, placeholder) {
+        var input = h('input', { type: 'search', class: 'ed-input', id: id, value: value, placeholder: placeholder, 'aria-label': placeholder });
+        input.addEventListener('input', function () { onInput(input.value.trim().toLowerCase()); });
+        return input;
+      }
+
+      function listRow(active, onSelect, kids, attrs) {
+        var row = h('div', Object.assign({ class: 'ed-row' + (active ? ' active' : ''), role: 'button', tabindex: 0,
+          onclick: onSelect }, attrs), kids);
+        row.addEventListener('keydown', function (evt) { if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); onSelect(); } });
+        return row;
+      }
+
+      // ---------- nodes ----------
+      // Members are listed under their group. A parent cycle (possible in a
+      // hand-written file) can't be walked from a root, so whatever is left
+      // over is appended at the end rather than dropped.
+      function nodeOrder() {
+        var all = liveNodes();
+        var byId = Object.create(null);
+        all.forEach(function (n) { if (n.id !== undefined && !byId[n.id]) byId[n.id] = n; });
+        var kids = new Map();
+        var roots = [];
+        all.forEach(function (n) {
+          var p = n.parent !== undefined ? byId[n.parent] : null;
+          if (p && p !== n) { if (!kids.has(p)) kids.set(p, []); kids.get(p).push(n); }
+          else roots.push(n);
+        });
+        var out = [];
+        var seen = new Set();
+        function walk(n, depth) {
+          if (seen.has(n)) return;
+          seen.add(n);
+          out.push({ node: n, depth: depth });
+          (kids.get(n) || []).forEach(function (c) { walk(c, depth + 1); });
+        }
+        roots.forEach(function (n) { walk(n, 0); });
+        all.forEach(function (n) { walk(n, 0); });
+        return out;
+      }
+
+      function renderNodes() {
+        if (currentNode && graph.nodes.indexOf(currentNode) === -1) currentNode = null;
+        if (!currentNode) currentNode = liveNodes()[0] || null;
+        listBox = h('div', { class: 'ed-list', id: 'ed-node-list' });
+        formBox = h('div', { class: 'ed-form', id: 'ed-node-form' });
+        renderNodeList();
+        renderNodeForm();
+        return heading('Nodes', 'The services, databases, queues and groups. A group is any node that another node names as its group.').concat([
+          h('div', { class: 'ed-split' }, [
+            h('div', { class: 'ed-master' }, [
+              h('div', { class: 'ed-list-tools' }, [
+                filterInput('ed-node-filter', nodeFilter, function (q) { nodeFilter = q; renderNodeList(); }, 'Filter nodes…'),
+                h('button', { type: 'button', class: 'ed-btn', id: 'ed-add-node', onclick: addNode }, ['+ Add node']),
+                h('button', { type: 'button', class: 'ed-btn', id: 'ed-add-group', onclick: addGroup }, ['+ Add group'])
+              ]),
+              listBox
+            ]),
+            formBox
+          ])
+        ]);
+      }
+
+      function renderNodeList() {
+        listBox.replaceChildren();
+        var rows = nodeOrder().filter(function (r) {
+          if (!nodeFilter) return true;
+          return (String(r.node.id) + ' ' + (r.node.label || '')).toLowerCase().indexOf(nodeFilter) !== -1;
+        });
+        if (!rows.length) {
+          listBox.appendChild(h('div', { class: 'ed-empty', text: graph.nodes.length ? 'No nodes match.' : 'No nodes yet.' }));
+          return;
+        }
+        rows.forEach(function (r) {
+          var n = r.node;
+          var group = isGroup(n);
+          var cfg = graph.nodeTypes[n.type];
+          var row = listRow(n === currentNode, function () { currentNode = n; renderNodeList(); renderNodeForm(); }, [
+            group ? h('span', { class: 'ed-badge', text: 'group' }) : swatch(cfg ? cfg.color : '#c4c8d0', true),
+            h('span', { class: 'ed-row-label', text: n.label || (n.id !== undefined ? String(n.id) : '(no id)') }),
+            h('span', { class: 'ed-row-id', text: n.id !== undefined ? String(n.id) : '' })
+          ], { 'data-id': n.id !== undefined ? String(n.id) : '' });
+          row.style.paddingLeft = (10 + r.depth * 16) + 'px';
+          listBox.appendChild(row);
+        });
+        var active = listBox.querySelector('.ed-row.active');
+        if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest' });
+      }
+
+      function renderNodeForm() {
+        var n = currentNode;
+        formBox.replaceChildren();
+        if (!n) {
+          formBox.appendChild(h('p', { class: 'ed-muted', text: graph.nodes.length ? 'Select a node to edit it.' : 'No nodes yet — add one to get started.' }));
+          return;
+        }
+        var group = isGroup(n);
+        var title = h('span', { text: n.label || n.id || '(no id)' });
+        function retitle() { title.textContent = n.label || n.id || '(no id)'; }
+
+        var position;
+        if (group) {
+          position = h('p', { class: 'ed-note', text: 'A group containing ' + plural(memberCount(n), 'node') +
+            '. Groups are sized around their members, so they have no position of their own.' });
+        } else {
+          var px = h('input', { type: 'number', class: 'ed-input ed-num', id: 'ed-node-x', 'aria-label': 'x', step: 1,
+            value: n.position ? String(n.position.x) : '' });
+          var py = h('input', { type: 'number', class: 'ed-input ed-num', id: 'ed-node-y', 'aria-label': 'y', step: 1,
+            value: n.position ? String(n.position.y) : '' });
+          var commitPosition = function () {
+            var x = px.value.trim(), y = py.value.trim();
+            var err = null;
+            if (x === '' && y === '') delete n.position;
+            else if (x === '' || y === '') err = 'Give both x and y, or neither.';
+            else put(n, 'position', { x: Number(x), y: Number(y) });
+            showError(px, err);
+            showError(py, err);
+            if (!err) changed();
+          };
+          px.addEventListener('change', commitPosition);
+          py.addEventListener('change', commitPosition);
+          position = h('div', { class: 'ed-inline' }, ['x', px, 'y', py]);
+        }
+
+        var exclude = descendantsOf(n);
+        formBox.append(
+          h('h3', null, [title, group ? h('span', { class: 'ed-badge', text: 'group' }) : null]),
+          field('Id', textInput(n.id, function (v) { return renameNode(n, v); }, { id: 'ed-node-id' }),
+            'Must be unique. Renaming updates every edge and group member that refers to it.'),
+          field('Label', textInput(n.label, function (v) {
+            if (v) put(n, 'label', v); else delete n.label;
+            retitle();
+            renderNodeList();
+          }, { id: 'ed-node-label', placeholder: n.id !== undefined ? String(n.id) : '' }), 'Defaults to the id.'),
+          field('Type', selectInput(typeOptions(graph.nodeTypes), n.type, function (v) {
+            if (v) put(n, 'type', v); else delete n.type;
+            renderNodeList();
+          }, { id: 'ed-node-type' }), group ? 'A group is drawn as a box whatever its type.' : null),
+          field('Group', selectInput([{ value: '', label: '(none)' }].concat(nodeOptions(function (m) { return exclude.has(m); })),
+            n.parent, function (v) { setParent(n, v); }, { id: 'ed-node-parent' })),
+          field('Position', position),
+          field('Tags', tagChips(n)),
+          field('Details', detailsEditor(n)),
+          h('div', { class: 'ed-actions' }, [
+            h('button', { type: 'button', class: 'ed-btn', id: 'ed-node-show', disabled: n.id === undefined,
+              onclick: function () { showInDiagram(n.id); } }, ['Show in diagram']),
+            h('button', { type: 'button', class: 'ed-btn', id: 'ed-node-duplicate', onclick: function () { duplicateNode(n); } }, ['Duplicate']),
+            h('button', { type: 'button', class: 'ed-btn danger', id: 'ed-node-delete', onclick: function () { deleteNode(n); } }, ['Delete node'])
+          ])
+        );
+      }
+
+      function renameNode(n, to) {
+        if (!to) return 'An id is required.';
+        if (nodeIdTaken(to)) return 'Another node already has the id “' + to + '”.';
+        var from = n.id;
+        if (from !== undefined) {
+          liveEdges().forEach(function (e) {
+            if (e.source === from) e.source = to;
+            if (e.target === from) e.target = to;
+          });
+          liveNodes().forEach(function (m) { if (m !== n && m.parent === from) m.parent = to; });
+        }
+        n.id = to;
+        renderNodeList();
+      }
+
+      // A node that gains its first member stops being drawn as a node and
+      // starts being sized around its members, so the position it had as a
+      // leaf is dropped; a group that loses its last member becomes a leaf
+      // again and needs one.
+      function setParent(n, v) {
+        var before = n.parent !== undefined ? nodeById(n.parent) : null;
+        var after = v ? nodeById(v) : null;
+        if (after && !isGroup(after)) delete after.position;
+        if (v) put(n, 'parent', v); else delete n.parent;
+        placeIfLeaf(before);
+        renderNodeList();
+      }
+
+      function addNode() {
+        var types = Object.keys(graph.nodeTypes);
+        var n = { id: uniqueName('new-service', nodeIdTaken), label: 'New service' };
+        if (types.length) n.type = types[0];
+        n.position = nextPosition();
+        graph.nodes.push(n);
+        currentNode = n;
+        nodeFilter = '';
+        changed();
+        renderSection();
+        var id = document.getElementById('ed-node-label');
+        if (id) { id.focus(); id.select(); }
+      }
+
+      function addGroup() {
+        // Positioned like any leaf until something joins it; see setParent().
+        var n = { id: uniqueName('new-group', nodeIdTaken), label: 'New group', position: nextPosition() };
+        graph.nodes.push(n);
+        currentNode = n;
+        nodeFilter = '';
+        changed();
+        renderSection();
+      }
+
+      function duplicateNode(n) {
+        var copy = JSON.parse(JSON.stringify(n));
+        copy.id = uniqueName(String(n.id) + '-copy', nodeIdTaken);
+        if (copy.label) copy.label += ' (copy)';
+        if (isGroup(n)) delete copy.position;
+        if (copy.position) copy.position = { x: copy.position.x + 40, y: copy.position.y + 40 };
+        else placeIfLeaf(copy);
+        graph.nodes.splice(graph.nodes.indexOf(n) + 1, 0, copy);
+        currentNode = copy;
+        changed();
+        renderSection();
+      }
+
+      function deleteNode(n) {
+        var flows = liveEdges().filter(function (e) { return e.source === n.id || e.target === n.id; });
+        var members = liveNodes().filter(function (m) { return m !== n && m.parent === n.id; });
+        var consequences = [];
+        if (flows.length) consequences.push(plural(flows.length, 'connected edge') + ' will be deleted with it');
+        if (members.length) consequences.push(plural(members.length, 'member') + ' will be moved out of the group');
+        if (!window.confirm('Delete “' + (n.label || n.id) + '”?' +
+            (consequences.length ? ' ' + consequences.join(', and ') + '.' : ''))) return;
+        flows.forEach(function (e) { graph.edges.splice(graph.edges.indexOf(e), 1); });
+        members.forEach(function (m) { delete m.parent; placeIfLeaf(m); });
+        var parent = n.parent !== undefined ? nodeById(n.parent) : null;
+        graph.nodes.splice(graph.nodes.indexOf(n), 1);
+        placeIfLeaf(parent);
+        if (flows.indexOf(currentEdge) !== -1) currentEdge = null;
+        currentNode = null;
+        changed();
+        renderSection();
+      }
+
+      // ---------- edges ----------
+      function renderEdges() {
+        if (currentEdge && graph.edges.indexOf(currentEdge) === -1) currentEdge = null;
+        if (!currentEdge) currentEdge = liveEdges()[0] || null;
+        listBox = h('div', { class: 'ed-list', id: 'ed-edge-list' });
+        formBox = h('div', { class: 'ed-form', id: 'ed-edge-form' });
+        renderEdgeList();
+        renderEdgeForm();
+        return heading('Edges', 'The flows between nodes. An edge’s type sets how it is drawn.').concat([
+          h('div', { class: 'ed-split' }, [
+            h('div', { class: 'ed-master' }, [
+              h('div', { class: 'ed-list-tools' }, [
+                filterInput('ed-edge-filter', edgeFilter, function (q) { edgeFilter = q; renderEdgeList(); }, 'Filter edges…'),
+                h('button', { type: 'button', class: 'ed-btn', id: 'ed-add-edge', disabled: !nodeOptions().length,
+                  title: nodeOptions().length ? null : 'Add a node first', onclick: addEdge }, ['+ Add edge'])
+              ]),
+              listBox
+            ]),
+            formBox
+          ])
+        ]);
+      }
+
+      function edgeTitle(e) { return nodeName(e.source) + ' → ' + nodeName(e.target); }
+
+      function renderEdgeList() {
+        listBox.replaceChildren();
+        var rows = liveEdges().filter(function (e) {
+          if (!edgeFilter) return true;
+          return [e.id, e.label, e.source, e.target, nodeName(e.source), nodeName(e.target)].join(' ').toLowerCase().indexOf(edgeFilter) !== -1;
+        });
+        if (!rows.length) {
+          listBox.appendChild(h('div', { class: 'ed-empty', text: graph.edges.length ? 'No edges match.' : 'No edges yet.' }));
+          return;
+        }
+        rows.forEach(function (e) {
+          var cfg = graph.edgeTypes[e.type];
+          listBox.appendChild(listRow(e === currentEdge, function () { currentEdge = e; renderEdgeList(); renderEdgeForm(); }, [
+            swatch(cfg ? cfg.color : '#c4c8d0', false),
+            h('span', { class: 'ed-row-label', text: edgeTitle(e) }),
+            h('span', { class: 'ed-row-id', text: e.label || '' })
+          ], { 'data-id': e.id !== undefined ? String(e.id) : '' }));
+        });
+        var active = listBox.querySelector('.ed-row.active');
+        if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest' });
+      }
+
+      function renderEdgeForm() {
+        var e = currentEdge;
+        formBox.replaceChildren();
+        if (!e) {
+          formBox.appendChild(h('p', { class: 'ed-muted', text: graph.edges.length ? 'Select an edge to edit it.' : 'No edges yet — add one to connect two nodes.' }));
+          return;
+        }
+        var title = h('span', { text: e.label || edgeTitle(e) });
+        function retitle() { title.textContent = e.label || edgeTitle(e); renderEdgeList(); }
+        var endpoints = nodeOptions();
+
+        formBox.append(
+          h('h3', null, [title]),
+          field('Id', textInput(e.id, function (v) {
+            if (!v) return 'An id is required.';
+            if (edgeIdTaken(v)) return 'Another edge already has the id “' + v + '”.';
+            e.id = v;
+            renderEdgeList();
+          }, { id: 'ed-edge-id' }), 'Must be unique.'),
+          field('From', h('div', { class: 'ed-inline' }, [
+            selectInput(endpoints, e.source, function (v) { e.source = v; retitle(); }, { id: 'ed-edge-source', 'aria-label': 'From' }),
+            h('button', { type: 'button', class: 'ed-btn icon', id: 'ed-edge-swap', title: 'Swap direction', 'aria-label': 'Swap direction',
+              onclick: function () {
+                var s = e.source; e.source = e.target; e.target = s;
+                changed();
+                renderEdgeForm();
+                renderEdgeList();
+              } }, ['⇅'])
+          ])),
+          field('To', selectInput(endpoints, e.target, function (v) { e.target = v; retitle(); }, { id: 'ed-edge-target' })),
+          field('Type', selectInput(typeOptions(graph.edgeTypes), e.type, function (v) {
+            if (v) put(e, 'type', v); else delete e.type;
+            renderEdgeList();
+          }, { id: 'ed-edge-type' })),
+          field('Label', textInput(e.label, function (v) {
+            if (v) put(e, 'label', v); else delete e.label;
+            retitle();
+          }, { id: 'ed-edge-label' }), 'Shown on the line when it lights up.'),
+          field('Tags', tagChips(e)),
+          field('Details', detailsEditor(e)),
+          h('div', { class: 'ed-actions' }, [
+            h('button', { type: 'button', class: 'ed-btn', id: 'ed-edge-show', disabled: e.id === undefined,
+              onclick: function () { showInDiagram(e.id); } }, ['Show in diagram']),
+            h('button', { type: 'button', class: 'ed-btn danger', id: 'ed-edge-delete', onclick: function () { deleteEdge(e); } }, ['Delete edge'])
+          ])
+        );
+      }
+
+      function addEdge() {
+        var leaves = liveNodes().filter(function (n) { return n.id !== undefined && !isGroup(n); });
+        if (!leaves.length) leaves = liveNodes().filter(function (n) { return n.id !== undefined; });
+        if (!leaves.length) return;
+        var from = currentNode && currentNode.id !== undefined && leaves.indexOf(currentNode) !== -1 ? currentNode : leaves[0];
+        var to = leaves.filter(function (n) { return n !== from; })[0] || from;
+        var e = { id: uniqueName('e-' + from.id + '-' + to.id, edgeIdTaken), source: from.id, target: to.id };
+        var types = Object.keys(graph.edgeTypes);
+        if (types.length) e.type = types[0];
+        graph.edges.push(e);
+        currentEdge = e;
+        edgeFilter = '';
+        changed();
+        renderSection();
+      }
+
+      function deleteEdge(e) {
+        if (!window.confirm('Delete the edge “' + (e.label || edgeTitle(e)) + '”?')) return;
+        graph.edges.splice(graph.edges.indexOf(e), 1);
+        currentEdge = null;
+        changed();
+        renderSection();
+      }
+
+      // ---------- wiring ----------
+      diagramBtn.addEventListener('click', exit);
+      editBtn.addEventListener('click', enter);
+      diagram.onDataCopied(function () { dirty = false; updateToggle(); });
+      // Edits live only in this tab until they are copied out, and the dataset
+      // picker switches by reloading, so leaving with uncopied edits asks first.
+      window.addEventListener('beforeunload', function (evt) {
+        if (!dirty) return;
+        evt.preventDefault();
+        evt.returnValue = '';
+      });
+      document.getElementById('view-toggle').hidden = false;
+      updateToggle();
     }
 
     boot();

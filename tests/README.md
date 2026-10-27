@@ -33,6 +33,7 @@ nothing to start first and nothing left running afterwards.
 | `suites/focus.mjs` | Dim-by-default focus lighting (`DESIGN.md` §7). |
 | `suites/widgets.mjs` | Every widget, and how each composes with the lighting. |
 | `suites/resilience.mjs` | Failure paths, the loader, the dataset picker, `file://`. |
+| `suites/editor.mjs` | The Edit view: every section, and each edit checked on the rebuilt canvas and in Copy data file's output. |
 | `fixtures/edge-cases.js` | Deliberately awkward data the example dataset can't reach. |
 
 ## Your data is never loaded
@@ -70,6 +71,14 @@ harness already:
 - **Don't hardcode an "empty" point.** The detail panel is 360px wide on the
   right and the legend sits bottom-left; a point that looks empty becomes a
   panel click the moment the panel opens. `page.emptyPoint()` scans for one.
+
+For the editor's DOM widgets, `page.clickEl(selector)` clicks with a real pointer
+and fails if the element is hidden or covered, `page.fill(selector, value)`
+commits a field the way leaving it would, `page.stubConfirm()` answers
+`confirm()` without a blocking dialog, and `page.captureClipboard()` +
+`page.copyData()` return the dataset Copy data file produced. A suite that
+leaves edits uncopied will trip the page's leave-with-unsaved-edits prompt on
+the next navigation, so copy before navigating away.
 
 Style values come back as `rgb(r, g, b)` — the page-side `hex()` helper
 normalises them so a failure message is readable. Colours are written out

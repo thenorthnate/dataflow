@@ -142,6 +142,65 @@ export async function createPage(cdp) {
     async unselectAll() { await cdp.evaluate('void __cy.elements().unselect()'); await sleep(SETTLE); },
     async lit() { return cdp.json('lit()'); },
 
+    // ---- DOM widgets (the editor view) ----
+
+    // A real pointer click at the element's centre rather than el.click(), so a
+    // control that is hidden, or covered by something else, fails the test the
+    // way it would fail a person. Scrolled into view first, since the editor's
+    // forms are longer than the window.
+    async clickEl(selector) {
+      const p = await cdp.json(`(() => {
+        const el = document.querySelector(${JSON.stringify(selector)});
+        if (!el) return null;
+        el.scrollIntoView({ block: 'center' });
+        const r = el.getBoundingClientRect();
+        const x = r.left + r.width / 2, y = r.top + r.height / 2;
+        const hit = document.elementFromPoint(x, y);
+        return { x: Math.round(x), y: Math.round(y), hits: !!hit && (hit === el || el.contains(hit) || (el.control && el.control === hit)) };
+      })()`);
+      if (!p) throw new Error(`no element matches ${selector}`);
+      if (!p.hits) throw new Error(`${selector} is not the topmost element at its own centre (hidden or covered)`);
+      await page.mouse('mouseMoved', p.x, p.y);
+      await page.mouse('mousePressed', p.x, p.y);
+      await page.mouse('mouseReleased', p.x, p.y);
+      await sleep(80);
+    },
+
+    // Sets a field the way typing then leaving it would: `input`, then `change`,
+    // which is when the editor commits.
+    async fill(selector, value) {
+      const ok = await cdp.evaluate(`(() => {
+        const el = document.querySelector(${JSON.stringify(selector)});
+        if (!el) return false;
+        el.value = ${JSON.stringify(String(value))};
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      })()`);
+      if (!ok) throw new Error(`no element matches ${selector}`);
+      await sleep(40);
+    },
+
+    // The default answer to a confirm() for the rest of the page's life. A real
+    // dialog would block the protocol until something dismissed it.
+    stubConfirm: (answer = true) => cdp.evaluate(`window.confirm = () => ${answer ? 'true' : 'false'}; true`),
+
+    // Swaps the clipboard for a stash so tests can read what was copied; the
+    // real one needs a permission grant and a focused window. Returns the
+    // dataset object out of the last copied `dataflow({...});` file.
+    captureClipboard: () => cdp.evaluate(`
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+        writeText: (t) => { window.__copied = t; return Promise.resolve(); }
+      } });
+      window.copiedData = () => JSON.parse(String(window.__copied).replace(/^dataflow\\(/, '').replace(/\\);\\s*$/, ''));
+      true;
+    `),
+    async copyData() {
+      await cdp.evaluate(`window.__copied = null; document.getElementById('copy-data').click()`);
+      await sleep(120);
+      return cdp.json('copiedData()');
+    },
+
     // A missing data file is an expected, tested condition, so those 404s are
     // not failures. Anything else in the error log is.
     errors: () => logs

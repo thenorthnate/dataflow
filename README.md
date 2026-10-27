@@ -72,6 +72,8 @@ the two never see each other, and no submodule machinery is involved.
 - **Multiple datasets** in one file, with a toolbar picker and `?dataset=<id>`
   URLs.
 - **Drag to rearrange**, then copy the layout back into your data file.
+- **Edit the data in the browser** — add, remove and restyle services, flows,
+  types and tags in a form view, then copy the result back into your data file.
 
 ## Files
 

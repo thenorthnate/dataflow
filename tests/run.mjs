@@ -19,8 +19,9 @@ import { createPage, createRecorder } from './lib/harness.mjs';
 import * as focus from './suites/focus.mjs';
 import * as widgets from './suites/widgets.mjs';
 import * as resilience from './suites/resilience.mjs';
+import * as editor from './suites/editor.mjs';
 
-const SUITES = [focus, widgets, resilience];
+const SUITES = [focus, widgets, resilience, editor];
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..');
